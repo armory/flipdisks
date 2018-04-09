@@ -44,7 +44,7 @@ class App extends Component {
 					<img src={logo} className="App-logo" alt="logo"/>
 					<h1 className="App-title">Welcome to React</h1>
 				</header>
-				<pre>
+				<div className="board-container">
 					{this.state.layout.map(yAxisBoardNames => {
 						return yAxisBoardNames.map(name => {
 							return (<div>{name}
@@ -53,7 +53,7 @@ class App extends Component {
 								})}</div>);
 						})
 					})}
-				</pre>
+				</div>
 
 			</div>
 		);
@@ -61,4 +61,3 @@ class App extends Component {
 }
 
 export default App;
-
