@@ -5,45 +5,125 @@ import (
 	"log"
 )
 
-
 type Row []int
 type Board []Row
 type Frame map[string]Board
 
-
-type streamResponse struct {
+type FlipdiskVideo struct {
 	Installation string     `json:"installation"`
-	FrameRate    int        `json:"frameRate"`
+	FPS          int        `json:"fps"`
 	Looping      bool       `json:"looping"`
-	Layout			 [][]string `json:"layout"`
-	Frames 			 []Frame    `json:"frames"`
+	Layout       [][]string `json:"layout"`
+	Frames       []Frame    `json:"frames"`
 }
 
+type Playlist struct {
+	Name    string          `json:"name"`
+	Videos  []FlipdiskVideo `json:"videos"`
+	Looping bool            `json:"looping"`
+}
 
-func GetStream(c *gin.Context) {
-	installationLocation := c.Param("installationLocation")
+func GetPlaying(c *gin.Context) {
+	siteName := c.Param("siteName")
 
-	log.Println("sending payload stub for: ", installationLocation)
+	log.Println("sending payload stub for: ", siteName)
 
-	stream := streamResponse{
-		Installation: installationLocation,
-		FrameRate:    1000,
+	video := FlipdiskVideo{
+		Installation: siteName,
+		FPS:          1,
 		Looping:      true,
-		Layout:				[][]string {
-	    []string{"board1", "board2", "board3"},
-	    []string{"board4", "board5", "board6"},
-	    []string{"board7", "board8", "board9"},
-	    []string{"board7", "board8", "board9"},
-  	},
+		Layout: [][]string{
+			[]string{"board1", "board2", "board3"},
+			[]string{"board4", "board5", "board6"},
+			[]string{"board7", "board8", "board9"},
+			[]string{"board7", "board8", "board9"},
+		},
 		Frames: []Frame{
 			Frame{
 				"board1": Board{
-					Row{1, 1, 1, 1, 1, 1},
-					Row{1,1,1,1,1,1,1},
+					Row{1, 1, 1, 1, 1, 1, 1},
+					Row{1, 1, 1, 1, 1, 1, 1},
+				},
+				"board2": Board{
+					Row{1, 1, 1, 1, 1, 1, 1},
+					Row{1, 1, 1, 1, 1, 1, 1},
+				},
+				"board3": Board{
+					Row{1, 1, 1, 1, 1, 1, 1},
+					Row{1, 1, 1, 1, 1, 1, 1},
+				},
+				"board4": Board{
+					Row{1, 1, 1, 1, 1, 1, 1},
+					Row{1, 1, 1, 1, 1, 1, 1},
+				},
+				"board5": Board{
+					Row{1, 1, 1, 1, 1, 1, 1},
+					Row{1, 1, 1, 1, 1, 1, 1},
+				},
+				"board6": Board{
+					Row{1, 1, 1, 1, 1, 1, 1},
+					Row{1, 1, 1, 1, 1, 1, 1},
+				},
+				"board7": Board{
+					Row{1, 1, 1, 1, 1, 1, 1},
+					Row{1, 1, 1, 1, 1, 1, 1},
+				},
+				"board8": Board{
+					Row{1, 1, 1, 1, 1, 1, 1},
+					Row{1, 1, 1, 1, 1, 1, 1},
+				},
+				"board9": Board{
+					Row{1, 1, 1, 1, 1, 1, 1},
+					Row{1, 1, 1, 1, 1, 1, 1},
+				},
+			},
+			Frame{
+				"board1": Board{
+					Row{2, 2, 2, 2, 2, 2, 2},
+					Row{2, 2, 2, 2, 2, 2, 2},
+				},
+				"board2": Board{
+					Row{2, 2, 2, 2, 2, 2, 2},
+					Row{2, 2, 2, 2, 2, 2, 2},
+				},
+				"board3": Board{
+					Row{2, 2, 2, 2, 2, 2, 2},
+					Row{2, 2, 2, 2, 2, 2, 2},
+				},
+				"board4": Board{
+					Row{2, 2, 2, 2, 2, 2, 2},
+					Row{2, 2, 2, 2, 2, 2, 2},
+				},
+				"board5": Board{
+					Row{2, 2, 2, 2, 2, 2, 2},
+					Row{2, 2, 2, 2, 2, 2, 2},
+				},
+				"board6": Board{
+					Row{2, 2, 2, 2, 2, 2, 2},
+					Row{2, 2, 2, 2, 2, 2, 2},
+				},
+				"board7": Board{
+					Row{2, 2, 2, 2, 2, 2, 2},
+					Row{2, 2, 2, 2, 2, 2, 2},
+				},
+				"board8": Board{
+					Row{2, 2, 2, 2, 2, 2, 2},
+					Row{2, 2, 2, 2, 2, 2, 2},
+				},
+				"board9": Board{
+					Row{2, 2, 2, 2, 2, 2, 2},
+					Row{2, 2, 2, 2, 2, 2, 2},
 				},
 			},
 		},
 	}
 
-	c.JSON(200, stream)
+	playlist := Playlist{
+		Name: "now showing",
+		Videos: []FlipdiskVideo{
+			video,
+		},
+	}
+
+	c.JSON(200, playlist)
 }

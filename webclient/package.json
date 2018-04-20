@@ -6,7 +6,9 @@
     "lodash": "^4.17.5",
     "react": "^16.2.0",
     "react-dom": "^16.2.0",
-    "react-scripts": "1.1.1"
+    "react-scripts": "1.1.1",
+    "request": "^2.85.0",
+    "request-promise": "^4.2.2"
   },
   "scripts": {
     "start": "react-scripts start",
