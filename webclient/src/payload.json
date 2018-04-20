@@ -1,5 +1,5 @@
 {
-  "frameRate": 1000,
+  "fps": 1,
   "looping": true,
   "layout": [
     ["board1", "board2", "board3"],
