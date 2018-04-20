@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css?family=Press+Start+2P');
+
+
 .App {
   text-align: center;
 }
@@ -8,6 +11,8 @@
 }
 
 .App-header {
+  background-image: url("https://static1.squarespace.com/static/556e5f93e4b0d3af1766fa9f/582f1c4dd1758eb049d178a0/583468cbe58c628b3189947d/1479916621622/animated_dot_v0.3.gif?format=2500w");
+  background-size: contain;
   background-color: #222;
   height: 150px;
   padding: 20px;
@@ -16,6 +21,7 @@
 
 .App-title {
   font-size: 1.5em;
+  font-family: 'Press Start 2P', cursive;
 }
 
 .App-intro {
@@ -31,5 +37,8 @@
   grid-column-gap: 5px;
   grid-template-columns: auto auto auto;
   grid-template-rows:auto auto;
-
+}
+body{
+  background-color: black;
+  color: white;
 }

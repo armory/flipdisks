@@ -42,12 +42,12 @@ class App extends Component {
 			<div className="App">
 				<header className="App-header">
 					<img src={logo} className="App-logo" alt="logo"/>
-					<h1 className="App-title">Welcome to React</h1>
+					<h1 className="App-title">Flip Disc Simulator</h1>
 				</header>
 				<div className="board-container">
 					{this.state.layout.map(yAxisBoardNames => {
 						return yAxisBoardNames.map(name => {
-							return (<div>{name}
+							return (<div>
 								{this.state[name].map(x => {
 									return (<div>{x.join(' ')}</div>);
 								})}</div>);
