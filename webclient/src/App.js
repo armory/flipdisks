@@ -24,24 +24,29 @@ class App extends Component {
 
 
 	async componentDidMount() {
-		const playlist = await request(`${config.server.baseUrl}/v1/sites/armory/playing`, {json: true});
-		const video = playlist.videos[0];
-
 		let frameNumber = 0;
 
-		setInterval(() => {
-			const state = {
-				layout: video.layout,
-			};
+		setInterval(async () => {
+			try {
+				const playlist = await request(`${config.server.baseUrl}/v1/sites/armory/playing`, {json: true});
+				const video = playlist.videos[0];
 
-			_.flatten(video.layout).forEach(boardName => {
-				state[boardName] = video.frames[frameNumber][boardName];
-			});
 
-			this.setState(state);
+				const state = {
+					layout: video.layout,
+				};
 
-			frameNumber = (frameNumber + 1) % video.frames.length;
-		}, 1000 / video.fps);
+				_.flatten(video.layout).forEach(boardName => {
+					state[boardName] = video.frames[frameNumber][boardName];
+				});
+
+				this.setState(state);
+
+				frameNumber = (frameNumber + 1) % video.frames.length;
+			} catch(e) {
+
+			}
+		}, 1000);
 	}
 
 
@@ -59,8 +64,8 @@ class App extends Component {
 					{this.state.layout.map(yAxisBoardNames => {
 						return yAxisBoardNames.map((name, index) => {
 							return (<div key={index}>
-								{this.state[name].map((x, index) => {
-									return (<div key={index}>{x.join(' ')}</div>);
+								{this.state[name].map((row, index) => {
+									return (<div key={index}>{row.map(dot => <span class="flipdot">{dot}</span>)}</div>);
 								})}</div>);
 						})
 					})}
