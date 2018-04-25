@@ -1,5 +1,4 @@
 import React, {Component} from 'react';
-import logo from './logo.svg';
 import './App.css';
 import * as _ from 'lodash';
 import * as request from 'request-promise';
@@ -27,12 +26,15 @@ class App extends Component {
 		const playlist = await request(`${config.server.baseUrl}/v1/sites/armory/playing`, {json: true});
 		const video = playlist.videos[0];
 
-		let frameNumber = 0;
+				const state = {
+					layout: video.layout,
+					boards: {}	// each board per ferm
+				};
 
-		setInterval(() => {
-			const state = {
-				layout: video.layout,
-			};
+				// set each board into the state
+				_.flatten(video.layout).forEach(boardName => {
+					state.boards[boardName] = video.frames[frameNumber][boardName];
+				});
 
 			_.flatten(video.layout).forEach(boardName => {
 				state[boardName] = video.frames[frameNumber][boardName];
@@ -44,8 +46,20 @@ class App extends Component {
 		}, 1000 / video.fps);
 	}
 
-
 	render() {
+		const drawABoard = (boardName, columnIndex) => {
+			// for each row, create a span of columns
+			return (
+				<div className="board-row" key={columnIndex}>
+					{
+						this.state.boards[boardName].map((boardRow, boardIndex) => {
+							return (
+								<div key={boardIndex}>{boardRow.map(dot => <span className="a-single-flipdisk">{dot}</span>)}</div>);
+						})
+					}
+				</div>);
+		};
+
 		if (!this.state) {
 			return (<div></div>)
 		}
@@ -56,12 +70,11 @@ class App extends Component {
 					<h1 className="App-title">Flip Disc Simulator</h1>
 				</header>
 				<div className="board-container">
-					{this.state.layout.map(yAxisBoardNames => {
-						return yAxisBoardNames.map((name, index) => {
-							return (<div key={index}>
-								{this.state[name].map((x, index) => {
-									return (<div key={index}>{x.join(' ')}</div>);
-								})}</div>);
+
+					{this.state.layout.map(rowLayout => {
+						// create a row of boards by column
+						return rowLayout.map((boardName, columnIndex) => {
+							return drawABoard(boardName, columnIndex)
 						})
 					})}
 				</div>
