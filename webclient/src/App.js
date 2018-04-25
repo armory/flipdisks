@@ -1,5 +1,4 @@
 import React, {Component} from 'react';
-import logo from './logo.svg';
 import './App.css';
 import * as _ from 'lodash';
 import * as request from 'request-promise';
@@ -34,10 +33,12 @@ class App extends Component {
 
 				const state = {
 					layout: video.layout,
+					boards: {}	// each board per ferm
 				};
 
+				// set each board into the state
 				_.flatten(video.layout).forEach(boardName => {
-					state[boardName] = video.frames[frameNumber][boardName];
+					state.boards[boardName] = video.frames[frameNumber][boardName];
 				});
 
 				this.setState(state);
@@ -49,8 +50,20 @@ class App extends Component {
 		}, 1000);
 	}
 
-
 	render() {
+		const drawABoard = (boardName, columnIndex) => {
+			// for each row, create a span of columns
+			return (
+				<div className="board-row" key={columnIndex}>
+					{
+						this.state.boards[boardName].map((boardRow, boardIndex) => {
+							return (
+								<div key={boardIndex}>{boardRow.map(dot => <span className="a-single-flipdisk">{dot}</span>)}</div>);
+						})
+					}
+				</div>);
+		};
+
 		if (!this.state) {
 			return (<div></div>)
 		}
@@ -62,12 +75,10 @@ class App extends Component {
 				</header>
 				<div className="board-container">
 
-					{this.state.layout.map(yAxisBoardNames => {
-						return yAxisBoardNames.map((name, index) => {
-							return (<div key={index}>
-								{this.state.layout[name].map((row, index) => {
-									return (<div key={index}>{row.map(dot => <span class="flipdot">{dot}</span>)}</div>);
-								})}</div>);
+					{this.state.layout.map(rowLayout => {
+						// create a row of boards by column
+						return rowLayout.map((boardName, columnIndex) => {
+							return drawABoard(boardName, columnIndex)
 						})
 					})}
 				</div>
