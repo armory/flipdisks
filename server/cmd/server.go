@@ -18,6 +18,10 @@ func main() {
   {
     //v1.GET( "/sites/:siteName/playlists", installations)
     v1.GET("/sites/:siteName/playing", installations.GetPlaying)
+    //endpoints for fonts
+    v1.GET("/sites/:siteName/fonts")
+    //
+    v1.POST("/sites/:siteName/fonts/test")
   }
 
   // listen and serve on 0.0.0.0:8080

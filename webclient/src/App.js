@@ -61,6 +61,7 @@ class App extends Component {
 					<h1 className="App-title">Flip Disc Simulator</h1>
 				</header>
 				<div className="board-container">
+
 					{this.state.layout.map(yAxisBoardNames => {
 						return yAxisBoardNames.map((name, index) => {
 							return (<div key={index}>
