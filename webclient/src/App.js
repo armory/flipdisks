@@ -24,29 +24,24 @@ class App extends Component {
 
 
 	async componentDidMount() {
+		const playlist = await request(`${config.server.baseUrl}/v1/sites/armory/playing`, {json: true});
+		const video = playlist.videos[0];
+
 		let frameNumber = 0;
 
-		setInterval(async () => {
-			try {
-				const playlist = await request(`${config.server.baseUrl}/v1/sites/armory/playing`, {json: true});
-				const video = playlist.videos[0];
+		setInterval(() => {
+			const state = {
+				layout: video.layout,
+			};
 
+			_.flatten(video.layout).forEach(boardName => {
+				state[boardName] = video.frames[frameNumber][boardName];
+			});
 
-				const state = {
-					layout: video.layout,
-				};
+			this.setState(state);
 
-				_.flatten(video.layout).forEach(boardName => {
-					state[boardName] = video.frames[frameNumber][boardName];
-				});
-
-				this.setState(state);
-
-				frameNumber = (frameNumber + 1) % video.frames.length;
-			} catch(e) {
-
-			}
-		}, 1000);
+			frameNumber = (frameNumber + 1) % video.frames.length;
+		}, 1000 / video.fps);
 	}
 
 
@@ -61,12 +56,11 @@ class App extends Component {
 					<h1 className="App-title">Flip Disc Simulator</h1>
 				</header>
 				<div className="board-container">
-
 					{this.state.layout.map(yAxisBoardNames => {
 						return yAxisBoardNames.map((name, index) => {
 							return (<div key={index}>
-								{this.state.layout[name].map((row, index) => {
-									return (<div key={index}>{row.map(dot => <span class="flipdot">{dot}</span>)}</div>);
+								{this.state[name].map((x, index) => {
+									return (<div key={index}>{x.join(' ')}</div>);
 								})}</div>);
 						})
 					})}
