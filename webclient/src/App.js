@@ -65,7 +65,7 @@ class App extends Component {
 					{this.state.layout.map(yAxisBoardNames => {
 						return yAxisBoardNames.map((name, index) => {
 							return (<div key={index}>
-								{this.state[name].map((row, index) => {
+								{this.state.layout[name].map((row, index) => {
 									return (<div key={index}>{row.map(dot => <span class="flipdot">{dot}</span>)}</div>);
 								})}</div>);
 						})
