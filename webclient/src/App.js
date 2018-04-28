@@ -1,5 +1,4 @@
-import React, {Component} from 'react';
-import logo from './logo.svg';
+import React, { Component } from 'react';
 import './App.css';
 import * as _ from 'lodash';
 import * as request from 'request-promise';
@@ -22,35 +21,49 @@ class App extends Component {
 		super();
 	}
 
-
 	async componentDidMount() {
-		let frameNumber = 0;
-
-		setInterval(async () => {
-			try {
-				const playlist = await request(`${config.server.baseUrl}/v1/sites/armory/playing`, {json: true});
-				const video = playlist.videos[0];
-
-
-				const state = {
-					layout: video.layout,
-				};
-
-				_.flatten(video.layout).forEach(boardName => {
-					state[boardName] = video.frames[frameNumber][boardName];
-				});
-
-				this.setState(state);
-
-				frameNumber = (frameNumber + 1) % video.frames.length;
-			} catch(e) {
-
+		const board = await request.post({
+			url: `${config.server.baseUrl}/v1/fonts/render`,
+			json: true,
+			body: {
+				"fontName": "TI84",
+				"text": "good job",
+				"spaceWidth": 4,
+				"kerning": 0
 			}
-		}, 1000);
+		});
+
+		console.log(board)
+		this.setState({
+			board: board
+		});
 	}
 
-
 	render() {
+		const drawABoard = () => {
+			// for each row, create a span of columns
+			return (
+				<div className="board-container">
+					{
+						this.state.board.map((letter, letterIndex) => {
+							return (
+								<span>
+									{
+										letter.map((boardRow, boardIndex) => {
+											return (
+												<div className="board-row" key={boardIndex}>
+													{boardRow.map(dot => <span className="a-single-flipdisk">{dot}</span>)}
+												</div>
+											);
+										})
+									}
+								</span>
+							)})
+					}
+				</div>
+			);
+		};
+
 		if (!this.state) {
 			return (<div></div>)
 		}
@@ -60,15 +73,8 @@ class App extends Component {
 				<header className="App-header">
 					<h1 className="App-title">Flip Disc Simulator</h1>
 				</header>
-				<div className="board-container">
-					{this.state.layout.map(yAxisBoardNames => {
-						return yAxisBoardNames.map((name, index) => {
-							return (<div key={index}>
-								{this.state[name].map((row, index) => {
-									return (<div key={index}>{row.map(dot => <span class="flipdot">{dot}</span>)}</div>);
-								})}</div>);
-						})
-					})}
+				<div className="">
+					{drawABoard()}
 				</div>
 
 			</div>
