@@ -1,4 +1,4 @@
-import React, {Component} from 'react';
+import React, { Component } from 'react';
 import './App.css';
 import * as _ from 'lodash';
 import * as request from 'request-promise';
@@ -21,43 +21,47 @@ class App extends Component {
 		super();
 	}
 
-
 	async componentDidMount() {
-		const playlist = await request(`${config.server.baseUrl}/v1/sites/armory/playing`, {json: true});
-		const video = playlist.videos[0];
+		const board = await request.post({
+			url: `${config.server.baseUrl}/v1/fonts/render`,
+			json: true,
+			body: {
+				"fontName": "TI84",
+				"text": "good job",
+				"spaceWidth": 4,
+				"kerning": 0
+			}
+		});
 
-				const state = {
-					layout: video.layout,
-					boards: {}	// each board per ferm
-				};
-
-				// set each board into the state
-				_.flatten(video.layout).forEach(boardName => {
-					state.boards[boardName] = video.frames[frameNumber][boardName];
-				});
-
-			_.flatten(video.layout).forEach(boardName => {
-				state[boardName] = video.frames[frameNumber][boardName];
-			});
-
-			this.setState(state);
-
-			frameNumber = (frameNumber + 1) % video.frames.length;
-		}, 1000 / video.fps);
+		console.log(board)
+		this.setState({
+			board: board
+		});
 	}
 
 	render() {
-		const drawABoard = (boardName, columnIndex) => {
+		const drawABoard = () => {
 			// for each row, create a span of columns
 			return (
-				<div className="board-row" key={columnIndex}>
+				<div className="board-container">
 					{
-						this.state.boards[boardName].map((boardRow, boardIndex) => {
+						this.state.board.map((letter, letterIndex) => {
 							return (
-								<div key={boardIndex}>{boardRow.map(dot => <span className="a-single-flipdisk">{dot}</span>)}</div>);
-						})
+								<span>
+									{
+										letter.map((boardRow, boardIndex) => {
+											return (
+												<div className="board-row" key={boardIndex}>
+													{boardRow.map(dot => <span className="a-single-flipdisk">{dot}</span>)}
+												</div>
+											);
+										})
+									}
+								</span>
+							)})
 					}
-				</div>);
+				</div>
+			);
 		};
 
 		if (!this.state) {
@@ -69,14 +73,8 @@ class App extends Component {
 				<header className="App-header">
 					<h1 className="App-title">Flip Disc Simulator</h1>
 				</header>
-				<div className="board-container">
-
-					{this.state.layout.map(rowLayout => {
-						// create a row of boards by column
-						return rowLayout.map((boardName, columnIndex) => {
-							return drawABoard(boardName, columnIndex)
-						})
-					})}
+				<div className="">
+					{drawABoard()}
 				</div>
 
 			</div>

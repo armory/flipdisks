@@ -37,13 +37,16 @@
 
 .board-container {
   display: inline-grid;
-  grid-column-gap: 7px;
-  grid-row-gap: 3px;
-  grid-template-columns: repeat(25, auto);
+  grid-column-gap: 6px;
+  grid-row-gap: 20px;
+  grid-template-columns: repeat(6, auto);
   grid-template-rows: repeat(2, auto);
   font-family: "Inconsolata";
 }
+.board-row {
+  grid-template-columns: repeat(25, auto);
 
+}
 
 body{
   background-color: darkgray;
