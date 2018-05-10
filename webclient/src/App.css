@@ -6,53 +6,124 @@
   text-align: center;
 }
 
-.App-logo {
-  animation: App-logo-spin infinite 20s linear;
-  height: 80px;
+div {
+  opacity: 1;
+  transition: opacity 500ms ease-in;
 }
 
-.App-header {
-  background-image: url("https://static1.squarespace.com/static/556e5f93e4b0d3af1766fa9f/582f1c4dd1758eb049d178a0/583468cbe58c628b3189947d/1479916621622/animated_dot_v0.3.gif?format=2500w");
-  background-size: contain;
+.home-page {
+  background-image: url("https://78.media.tumblr.com/03f4b3ac8306831b9e8664b00a2a7368/tumblr_nyukp9xyov1qav3uso1_540.gif");
+  background-size: cover;
   background-color: #222;
-  height: 150px;
-  padding: 20px;
-  color: white;
+  padding: 150px;
+  color: black;
+  text-align: justify;
+}
+.font-page {
+  background-color: gray;
+}
+.jumbotron1 {
+    opacity: 0.9;
+    color: black;
+    font-size: 1.5em;
+    font-family: 'Press Start 2P', cursive;
+    padding: 20px;
+    text-align: center;
+    border-radius: 23.3rem;
 }
 
-.App-title {
-  font-size: 1.5em;
+/* .jumbotron {
+  border-radius: 23.3rem;
+  background-color: #5b6eac;  
   font-family: 'Press Start 2P', cursive;
-  padding: 105px;
-}
+ 
 
-.App-intro {
-  font-size: large;
-}
+} */
 
-@keyframes App-logo-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
 
 .board-container {
-  display: inline-grid;
+ max-width: 100%;
+ border: 4px rgb(224, 70, 255);
+
+}
+
+.line-container {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-content: center;
   grid-column-gap: 6px;
   grid-row-gap: 20px;
-  grid-template-columns: repeat(6, auto);
-  grid-template-rows: repeat(2, auto);
+  grid-template-columns: repeat(5, auto);
+  grid-template-rows: repeat(1, auto);
   font-family: "Inconsolata";
+  box-sizing: content-box;
+  border: 1px solid yellow;
+  /* width: 258px; */
+  
 }
 .board-row {
   grid-template-columns: repeat(25, auto);
-
 }
 
-body{
-  background-color: darkgray;
-  color: white;
+.font-container {
+    font-size: 1.5em;
+    font-family: 'Press Start 2P', cursive;
+    padding-top: 1px;
+    text-align: center;
+    background-color: darkgray;
+    color:black;
+    max-width: 100%;
 }
+
 
 .a-single-flipdisk {
-  padding-right: 11px;
+  padding-left: 11px;
+  position: relative;
+  box-sizing: border-box;
+  margin-left: -10px;
+  margin-top: 20px;
+  padding: 4px;
+  font-size: 12px;
+  line-height: 40px;
+  border: 4px solid rgb(226, 43, 55);
+  overflow: hidden;
+}
+
+html {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+
+.text-container-with-padding {
+  padding-left: 11px;
+  position: relative;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-left: 10px;
+  margin-top: 20px;
+  padding: 4px;
+  font-size: 12px;
+  line-height: 40px;
+  border: 4px solid rgb(43, 110, 226);
+  overflow: hidden;
+}
+.text-container-with-padding::after {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  font-size: 14px;
+  text-align: center;
+  color: gray;
+  pointer-events: none;
+  border: 4px solid orange;
+}
+.letters {
+  max-width: 100%;
+  font-size: 12px;
+  box-sizing: border-box;
+  border: 4px solid orange;
 }

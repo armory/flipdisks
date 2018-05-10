@@ -2,81 +2,50 @@ import React, { Component } from 'react';
 import './App.css';
 import * as _ from 'lodash';
 import * as request from 'request-promise';
+import { debug } from 'util';
+import Font from './Font';
+import Typist from 'react-typist';
+import {Jumbotron, Button} from 'react-bootstrap';
+import GithubCorner from 'react-github-corner';
+import Slider from './Slider';
 
-
-const config = {
-	server: {
-		method: 'http',
-		hostname: 'localhost',
-		port: 8080,
-		get baseUrl() {
-			return `${config.server.method}://${config.server.hostname}:${config.server.port}`;
-		}
-	}
-};
+// import MyNavbar from './Navbar';
 
 
 class App extends Component {
-	constructor() {
-		super();
-	}
-
-	async componentDidMount() {
-		const board = await request.post({
-			url: `${config.server.baseUrl}/v1/fonts/render`,
-			json: true,
-			body: {
-				"fontName": "TI84",
-				"text": "good job",
-				"spaceWidth": 4,
-				"kerning": 0
-			}
-		});
-
-		console.log(board)
-		this.setState({
-			board: board
-		});
-	}
-
 	render() {
-		const drawABoard = () => {
-			// for each row, create a span of columns
-			return (
-				<div className="board-container">
-					{
-						this.state.board.map((letter, letterIndex) => {
-							return (
-								<span>
-									{
-										letter.map((boardRow, boardIndex) => {
-											return (
-												<div className="board-row" key={boardIndex}>
-													{boardRow.map(dot => <span className="a-single-flipdisk">{dot}</span>)}
-												</div>
-											);
-										})
-									}
-								</span>
-							)})
-					}
+		return (				
+			<div>
+
+				<GithubCorner  href="https://github.com/armory/flipdisks" />
+
+				<div className="home-page">
+				<Jumbotron className="jumbotron1">
+					<Typist>
+						<h1>Hello, world!</h1>
+					<p>
+						This is a simple flip disc simulator. =D 
+  					</p>
+					<p>
+						One may ask,what is a flip disc exactly?
+					</p>
+					<Typist.Delay ms={500} />
+					<p>
+						The flip-disc display consists of a grid of small metal discs that are black on one side and a bright color on the other (typically white or day-glo yellow), set into a black background. With power applied, the disc flips to show the other side. Once flipped, the discs will remain in position without power.
+					</p>
+					<p>
+						<Button href="#font" bsStyle="primary">Try out our demo!</Button>
+					</p>
+					</Typist>
+				</Jumbotron>
+			</div>
+				<div className="font-page" id="font">
+					<Font/>
 				</div>
-			);
-		};
-
-		if (!this.state) {
-			return (<div></div>)
-		}
-
-		return (
-			<div className="App">
-				<header className="App-header">
-					<h1 className="App-title">Flip Disc Simulator</h1>
-				</header>
-				<div className="">
-					{drawABoard()}
+				<div className="" id="">
+				SLIDER SHOULD GO HERE:
+				<Slider/>
 				</div>
-
 			</div>
 		);
 	}
