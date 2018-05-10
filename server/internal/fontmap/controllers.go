@@ -66,13 +66,20 @@ func Render(context *gin.Context) {
 	}
 
 	// map each character to a rendered font using the font map
-	var board []Letter
+	board := [][]Letter{
+		[]Letter{}, // line
+	}
+
+	line := &board[0]
 
 	for _, char := range strings.Split(payload.Text, "") {
 		if char == " " {
-			board = append(board, generateSpace(payload.SpaceWidth, letterBoardHeight))
+			*line = append(*line, generateSpace(payload.SpaceWidth, letterBoardHeight))
+		} else if char == "\n" {
+			board = append(board, []Letter{})
+			line = &board[len(board)-1]
 		} else {
-			board = append(board, addKerning(TI84.Charmap[char], payload.Kerning))
+			*line = append(*line, addKerning(TI84.Charmap[char], payload.Kerning))
 		}
 	}
 

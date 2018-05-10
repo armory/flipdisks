@@ -3,132 +3,49 @@ import './App.css';
 import * as _ from 'lodash';
 import * as request from 'request-promise';
 import { debug } from 'util';
-// import Font from '/Users/jcheng305/go/src/github.com/armory/flipdisks/webclient/src/Font.js';
-// import DropDown from '/Users/jcheng305/go/src/github.com/armory/flipdisks/webclient/src/DropDown.js';
+import Font from './Font';
+import Typist from 'react-typist';
+import {Jumbotron, Button} from 'react-bootstrap';
+import GithubCorner from 'react-github-corner';
+import Slider from './Slider';
 
-const config = {
-	server: {
-		method: 'http',
-		hostname: 'localhost',
-		port: 8080,
-		get baseUrl() {
-			return `${config.server.method}://${config.server.hostname}:${config.server.port}`;
-		}
-	}
-};
+// import MyNavbar from './Navbar';
 
 
 class App extends Component {
-	constructor(props) {
-		super(props);
-
-		this.state = {
-			text: "Hello",
-			board: null
-		}
-
-		this.handleKeyPress = this.handleKeyPress.bind(this);
-	}
-
-
-
-	async componentDidMount() {
- 		const board = await request.post({
-			url: `${config.server.baseUrl}/v1/fonts/render`,
-			json: true,
-			body: {
-				"fontName": "TI84",
-				"text": "",
-				"spaceWidth": 0,
-				"kerning": 0
-			}
-		});
-
-		this.setState({
-			// text: "Test",
-			board: board
-		});
-		console.log(board)
-	}
-
-	handleKeyPress(event) {
-		this.setState({
-			text: event.target.value
-		});
-		
-		return request.post({
-			url: `${config.server.baseUrl}/v1/fonts/render`,
-			json: true,
-			body: {
-				"fontName": "TI84",
-				"text": event.target.value,
-				"spaceWidth": 0,
-				"kerning": 0
-			}
-		})
-		.then((board) => {
-			this.setState({
-				board:board
-			})
-		})
-		
-		console.log(2)
-				// this.setState({
-		// 	board: board
-		// });
-		console.log(3)
-	}
-
-
 	render() {
-		const drawABoard = () => {
-			if (!this.state.board) {
-				return (<div></div>)
-			}
-			// for each row, create a span of columns
-			return (
-				<div className="board-container">
-					{
-						this.state.board.map((letter, letterIndex) => {
-							return (
-								<span>
-									{
-										letter.map((boardRow, boardIndex) => {
-											return (
-												<div className="board-row" key={boardIndex}>
-													{boardRow.map(dot => <span className="a-single-flipdisk">{dot}</span>)}
-												</div>
-											);
-										})
-									}
-								</span>
-							)})
-					}
-				</div>
-			);
-		};
+		return (				
+			<div>
 
-		if (!this.state) {
-			return (<div></div>)
-		}
+				<GithubCorner  href="https://github.com/armory/flipdisks" />
 
-		return (
-			<div className="App">
-				<header className="App-header">
-					<h1 className="App-title">Flip Disc Simulator</h1>
-				</header>
-
-				<div className="text-box-container">
-					Font Type<select></select>
-					Grid Size<select></select>
-					Font Size<select></select>
+				<div className="home-page">
+				<Jumbotron className="jumbotron1">
+					<Typist>
+						<h1>Hello, world!</h1>
+					<p>
+						This is a simple flip disc simulator. =D 
+  					</p>
+					<p>
+						One may ask,what is a flip disc exactly?
+					</p>
+					<Typist.Delay ms={500} />
+					<p>
+						The flip-disc display consists of a grid of small metal discs that are black on one side and a bright color on the other (typically white or day-glo yellow), set into a black background. With power applied, the disc flips to show the other side. Once flipped, the discs will remain in position without power.
+					</p>
+					<p>
+						<Button href="#font" bsStyle="primary">Try out our demo!</Button>
+					</p>
+					</Typist>
+				</Jumbotron>
+			</div>
+				<div className="font-page" id="font">
+					<Font/>
 				</div>
-				<input type="text" onChange={this.handleKeyPress} value={this.state.text}></input>
-				<div className="">
-					{drawABoard()}
+				<div className="" id="">
+				SLIDER SHOULD GO HERE:
+				<Slider/>
 				</div>
-				{/* <Font/> */}
-				{/* <DropDown/> */}
 			</div>
 		);
 	}
