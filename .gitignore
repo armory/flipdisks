@@ -17,6 +17,7 @@
 .glide/
 
 server/vendor/*
+controller/vendor/*
 
 
 node_modules/
