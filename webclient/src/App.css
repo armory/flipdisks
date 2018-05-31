@@ -1,58 +1,191 @@
 @import url('https://fonts.googleapis.com/css?family=Press+Start+2P');
 @import url('https://fonts.googleapis.com/css?family=Inconsolata');
 
+.jumbotronStyle {
+    border-radius: 50px;
+    max-width: 100%;
+    text-align: center;
+    font-family: 'Press Start 2P', cursive;
+    opacity: 20%;
+    transition: opacity 10s;
+}
+
 
 .App {
   text-align: center;
 }
 
-.App-logo {
-  animation: App-logo-spin infinite 20s linear;
-  height: 80px;
+div {
+  opacity: 1;
+  transition: opacity 500ms ease-in;
+}
+textarea {
+    max-width: 100%;
 }
 
-.App-header {
-  background-image: url("https://static1.squarespace.com/static/556e5f93e4b0d3af1766fa9f/582f1c4dd1758eb049d178a0/583468cbe58c628b3189947d/1479916621622/animated_dot_v0.3.gif?format=2500w");
-  background-size: contain;
-  background-color: #222;
-  height: 150px;
-  padding: 20px;
-  color: white;
+.home-page {
+  padding: 150px;
+  color: black;
+  text-align: justify;
 }
 
-.App-title {
-  font-size: 1.5em;
-  font-family: 'Press Start 2P', cursive;
-  padding: 105px;
+.font-page {
+  background-color: gray;
 }
 
-.App-intro {
-  font-size: large;
+.line-container {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-content: center;
+  grid-column-gap: 6px;
+  grid-row-gap: 20px;
+  grid-template-columns: repeat(5, auto);
+  grid-template-rows: repeat(1, auto);
+  font-family: "Inconsolata";
+  box-sizing: content-box;
+  /*border: 1px solid yellow;*/
+  border-radius: 130px;
+  /* width: 258px; */
+  
 }
 
-@keyframes App-logo-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.board-row {
+  display: flex;
+}
+
+.font-container {
+    font-size: 1.5em;
+    font-family: 'Press Start 2P', cursive;
+    padding-top: 1px;
+    text-align: center;
+    background-color: #ededed;
+    color:black;
+    max-width: 100%;
+    border-radius: 50px;
+    overflow: hidden;
 }
 
 .board-container {
-  display: inline-grid;
-  grid-column-gap: 6px;
-  grid-row-gap: 20px;
-  grid-template-columns: repeat(6, auto);
-  grid-template-rows: repeat(2, auto);
-  font-family: "Inconsolata";
+  border-radius: 50px;
 }
-.board-row {
-  grid-template-columns: repeat(25, auto);
+
+html {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.letters {
+  max-width: 100%;
+  font-size: 30px;
+  box-sizing: border-box;
+}
+
+.dot-container{
+  padding-left: 20px;
+}
+
+body {
+   background-image: url("https://static1.squarespace.com/static/556e5f93e4b0d3af1766fa9f/t/57f5661ce58c626b1daf9882/1475700259275/flip+dot?format=1500w");
+   background-size: cover;
+   max-width: 100%;
+   height: auto;
+   opacity: 0.85;
+;
+}
+
+/* For devices smaller than 400px: */
+body {
+  background-image: url('https://static1.squarespace.com/static/556e5f93e4b0d3af1766fa9f/t/57f5661ce58c626b1daf9882/1475700259275/flip+dot?format=1500w');
+}
+
+/* For devices 400px and larger: */
+@media only screen and (min-device-width: 400px) {
+  body {
+    background-image: url('https://static1.squarespace.com/static/556e5f93e4b0d3af1766fa9f/t/57f5661ce58c626b1daf9882/1475700259275/flip+dot?format=1500w');
+  }
+}
+
+
+
+
+
+
+
+
+
+
+/* entire container, keeps perspective */
+.disc-container {
+  perspective: 1000;
+  margin: 20px auto;
+  position: relative;
+  /*background-color: black;*/
+  color:white;
+  
+}
+	/* flip the pane when hovered */
+.disc-container:hover .disc, .disc-container.hover .disc {
+		transform: rotateY(180deg);
+	}
+
+.disc-container, .front, .back {
 
 }
 
-body{
-  background-color: darkgray;
-  color: white;
+/* flip speed goes here */
+.disc {
+	transition: 0.6s;
+	transform-style: preserve-3d;
+	position: relative;
+  border: 1px solid black;
+  border-radius: 100%;
+  /* width: 20px; */
+  padding-left: 21px;
+  background-color:white;
 }
 
-.a-single-flipdisk {
-  padding-right: 11px;
+.frontSide {
+  background-color: blue;
+}
+
+.backSide {
+  background-color: red;
+}
+
+/* hide back of pane during swap */
+.front, .back {
+	backface-visibility: hidden;
+	/* position: absolute; */
+	/* top: 0;
+	left: 0; */
+  /* display:table; */
+  /* border: 1px solid transparent; */
+  /* border-radius: 50%; */
+  /* text-align: center; */
+  /* h1{
+    display: table-cell;
+    vertical-align: middle;
+    font-family: 'Lekton', sans-serif;
+    font-size: 4em;
+    font-weight: 700;
+  } */
+}
+
+/* front pane, placed above back */
+.front {
+  background-color: #ffffff;
+  border: 1px solid transparent;
+  /* bordr-radius: 50%; */
+	z-index: 2;
+	/* for firefox 31 */
+	transform: rotateY(0deg);
+}
+
+/* back, initially hidden pane */
+.back {
+	transform: rotateY(180deg);
+  background-color: #000000;
+  color: #ffffff;
+  
 }
