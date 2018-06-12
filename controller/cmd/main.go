@@ -141,6 +141,10 @@ func main() {
 		which then will have each character turned into a 2x2 matrix of dots
 		the final output will by an array of 2x2 matrixes
 		 */
+		msg = strings.Replace(msg, "&lt;", "<", -1)
+		msg = strings.Replace(msg, "&gt;", ">", -1)
+
+
 		for _, char := range strings.Split(msg, "") {
 			if char == " " {
 				msgCharsAsDots = append(msgCharsAsDots, generateSpace(2, fontmap.TI84.Metadata.MaxHeight, 0)) // random magic 2 for pretty printing letters with tails
@@ -179,6 +183,7 @@ func main() {
 				board = append(board, Row{})
 
 				// add a whitespace line
+
 				//for i := 0; i < longestLine; i++ {
 				//	board[len(board)-1] = append(board[len(board)-1], 0)
 				//}
