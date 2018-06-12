@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,8 +45,9 @@ type FlipdiskVideo struct {
 }
 
 type PanelInfo struct {
-	PanelHeight int
-	PanelWidth  int
+	PanelHeight              int
+	PanelWidth               int
+	PhysicallyDisplayedWidth int
 }
 
 type Playlist struct {
@@ -57,29 +59,22 @@ type Playlist struct {
 	PanelAddressesLayout [][]int
 }
 
+
 func main() {
 	playlist := &Playlist{
 		Name:     "demo",
 		Location: "armorywall",
 		PanelInfo: PanelInfo{
-			// debug panels
-			//PanelWidth: 28,
-			//PanelHeight: 100,
-
 			// actual panels
-			PanelWidth:  7,
-			PanelHeight: 28,
+			PanelWidth:  28,
+			PanelHeight: 7,
+
+			PhysicallyDisplayedWidth: 7,
 		},
 		PanelAddressesLayout: [][]int{
-			// debug layouts
-			//{1, 2, 3, 4, 5,},
-			//{6, 7, 8, 9, 10},
-			//{1},
-
 			// actual layouts
-			{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-			{11, 12, 13, 14, 15, 16, 17, 18, 19, 20},
-
+			{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+			{10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
 		},
 		Videos: []FlipdiskVideo{
 			{
@@ -125,103 +120,201 @@ func main() {
 
 	messages := make(chan string)
 	go startSlackListener(*slackToken, playlist, panels, messages)
-	//go func() { messages <- "Good morning" }()
-	//lastSeenMessage := ""
 	var msgCharsAsDots []fontmap.Letter
 
 	var board []Row
 
 	for msg := range messages {
+		if msg == "debug all panels" || msg == "debug panels" {
+			debugPanelAddressByGoingInOrder(panels)
+		}
+
+		if strings.Contains(msg, "debug panel") {
+			panelAddress, _ := strconv.Atoi(strings.Replace(msg, "debug panel ", "", -1))
+			debugSinglePanel(panels, panelAddress)
+		}
+
+		// clear the message and the board, ready for the next message
 		msgCharsAsDots = msgCharsAsDots[:0]
 		board = board[:0]
 
-		/*
-		if the message is "hello world"
-		then then we'll create ["h","e","l","l","o"," ","w","o","r","l","d"]
-		which then will have each character turned into a 2x2 matrix of dots
-		the final output will by an array of 2x2 matrixes
-		 */
+		// replace slack tokens that are rendered to characters
 		msg = strings.Replace(msg, "&lt;", "<", -1)
 		msg = strings.Replace(msg, "&gt;", ">", -1)
 
-
+		// for each character in msg, we'll create the flipdisk rendered character
+		/*
+		  if the message is "hello world"
+		  then then we'll create ["h","e","l","l","o"," ","w","o","r","l","d"]
+		  which then will have each character turned into a 2x2 matrix of dots
+		  the final output will by an array of 2x2 matrixes
+		   */
 		for _, char := range strings.Split(msg, "") {
-			if char == " " {
-				msgCharsAsDots = append(msgCharsAsDots, generateSpace(2, fontmap.TI84.Metadata.MaxHeight, 0)) // random magic 2 for pretty printing letters with tails
-			} else {
-				if dotLetter, charExists := fontmap.TI84.Charmap[char]; charExists {
+			switch char {
+			case " ", "\n":
+				spaceWidth := 2 // magic 2 for pretty printing letters with tails
+				msgCharsAsDots = append(msgCharsAsDots, generateSpace(spaceWidth, fontmap.TI84.Metadata.MaxHeight, 0))
+
+			default:
+				dotLetter, charExists := fontmap.TI84.Charmap[char]
+
+				if charExists {
 					msgCharsAsDots = append(msgCharsAsDots, addKerning(dotLetter, 0))
 				} else {
-					msgCharsAsDots = append(msgCharsAsDots, generateSpace(4, fontmap.TI84.Metadata.MaxHeight, 1))
+					msgCharsAsDots = append(msgCharsAsDots, generateSpace(3, fontmap.TI84.Metadata.MaxHeight, 1))
 				}
 			}
 		}
 
+		// we have to convert our long array of dotCharacters to a virtual board
 		var longestLine, lineNumber int
 		longestLine = 0
 		lineNumber = 0
-		lineMaxWidth := playlist.PanelInfo.PanelWidth * len(playlist.PanelAddressesLayout[0])
+		lineMaxWidth := playlist.PanelInfo.PhysicallyDisplayedWidth * len(playlist.PanelAddressesLayout[0])
 
 		// join the letters together to form one long string
-		for _, charAsDots := range msgCharsAsDots {
+		for charIndexInMessage, charAsDots := range msgCharsAsDots {
+			if longestLine+len(charAsDots[0]) > lineMaxWidth || msg[charIndexInMessage] == '\n' {
+				lineNumber++
+				longestLine = 0
+
+				if msg[charIndexInMessage] == '\n' {
+					continue
+				}
+			}
+
 			for charRowIndex, charRow := range charAsDots {
-				boardCharRowIndex := charRowIndex + lineNumber*fontmap.TI84.Metadata.MaxHeight
-				if len(board) <= boardCharRowIndex {
+				boardCharRowIndex := charRowIndex + (lineNumber * fontmap.TI84.Metadata.MaxHeight)
+				//log.Println(len(board), boardCharRowIndex, charRowIndex, lineNumber, fontmap.TI84.Metadata.MaxHeight)
+				for len(board) <= boardCharRowIndex { // 2 < 2
 					board = append(board, Row{})
 				}
 
-				//fmt.Println("writing to line number:", lineNumber)
+				//log.Printf("writing to line number: %d, boardCharRowIndex %d", lineNumber, boardCharRowIndex)
+				//log.Print("row:", charRow)
 				board[boardCharRowIndex] = append(board[boardCharRowIndex], charRow...)
 
 				if longestLine < len(board[boardCharRowIndex]) {
 					longestLine = len(board[boardCharRowIndex])
 				}
 			}
-
-			if longestLine >= lineMaxWidth {
-				lineNumber++
-				board = append(board, Row{})
-
-				// add a whitespace line
-
-				//for i := 0; i < longestLine; i++ {
-				//	board[len(board)-1] = append(board[len(board)-1], 0)
-				//}
-				longestLine = 0
-			}
 		}
+
+		printBoard(board)
 
 		frameIndex := 0
+		frameIndex = frameIndex
 
-		for y, row := range board {
-			panelRow := y / playlist.PanelInfo.PanelHeight
+		// convert virtual board to a physical board
+		for x := 0; x < len(board); x++ {
+			for y := 0; y < len(board[x]); y++ {
+				panelXCoord := x / playlist.PanelInfo.PanelWidth
+				panelYCoord := y / playlist.PanelInfo.PanelHeight
 
-			if panelRow >= len(playlist.PanelAddressesLayout) {
-				log.Printf("Warning: Frame %d row %d, exceeds specified HEIGHT %d, dropping the rest of it.", frameIndex, y, playlist.PanelInfo.PanelWidth)
-				break
-			}
-
-			for x, cellValue := range row {
-				panelColumn := x / playlist.PanelInfo.PanelWidth
-
-				if panelColumn >= len(playlist.PanelAddressesLayout[panelRow]) {
-					log.Printf("Warning: Frame %d cell(%d,%d) exceeds specified WIDTH %d, dropping the rest of it.", frameIndex, x, y, playlist.PanelInfo.PanelWidth)
-					break
+				if panelXCoord >= len(playlist.PanelAddressesLayout) {
+					log.Printf("Warning: Frame %d row %d, exceeds specified HEIGHT %d, dropping the rest of it.", frameIndex, y, playlist.PanelInfo.PanelWidth)
+					continue
 				}
 
-				p := panels[panelRow][panelColumn]
-				p.Set(x%playlist.PanelInfo.PanelWidth, y%playlist.PanelInfo.PanelHeight, cellValue == 1)
+				if panelYCoord >= len(playlist.PanelAddressesLayout[panelXCoord]) {
+					log.Printf("Warning: Frame %d cell(%d,%d) exceeds specified WIDTH %d, dropping the rest of it.", frameIndex, x, y, playlist.PanelInfo.PanelWidth)
+					continue
+				}
+
+				p := panels[panelXCoord][panelYCoord]
+
+				// which dot should we set?
+				dotXCoord := x % playlist.PanelInfo.PanelWidth
+				dotYCoord := y % playlist.PanelInfo.PanelHeight
+				dotValue := board[x][y] == 1
+				//log.Printf("Setting panel(%d,%d), adddress %d, dot(%d,%d) with %t", panelXCoord, panelYCoord, p.Address, dotXCoord, dotYCoord, dotValue)
+				p.Set(dotXCoord, dotYCoord, dotValue)
 			}
 		}
+
+		// print the panels
+		for y, row := range panels {
+			for x, p := range row {
+				y = y
+				x = x
+				//fmt.Println(x, y, p.Address)
+				//p.PrintState()
+				p.Send()
+				p.Clear(false)
+				//p.Send()
+			}
+		}
+	}
+}
+
+func debugPanelAddressByGoingInOrder(panels [][]*panel.Panel) {
+	// clear all boards
+	for _, row := range panels {
+		for _, p := range row {
+			p.Clear(false)
+			p.Send()
+		}
+	}
+
+	dotState := false
+	for {
+		dotState = !dotState
 
 		for y, row := range panels {
 			for x, p := range row {
-				fmt.Println(x, y, p.Address)
-				p.PrintState()
+				x = x
+				y = y
+				//if p.Address[0] == byte(1) {
+				//fmt.Println(x, y, p.Address, dotState)
+				p.Clear(dotState)
 				p.Send()
-				p.Clear(false)
+				time.Sleep(time.Duration(250) * time.Millisecond)
+				//}
+				//p.Send()
 			}
 		}
+	}
+}
+
+func debugSinglePanel(panels [][]*panel.Panel, address int) {
+	// clear all boards
+	for _, row := range panels {
+		for _, p := range row {
+			p.Clear(false)
+			p.Send()
+		}
+	}
+
+	dotState := false
+	for {
+		dotState = !dotState
+
+		for y, row := range panels {
+			for x, p := range row {
+				x = x
+				y = y
+				if p.Address[0] == byte(address) {
+					fmt.Println(x, y, p.Address, dotState)
+					p.Clear(dotState)
+					p.Send()
+					time.Sleep(time.Duration(500) * time.Millisecond)
+				}
+			}
+		}
+	}
+}
+
+func printBoard(board Board) {
+	for x := 0; x < len(board); x++ {
+		line := ""
+		for y := 0; y < len(board[x]); y++ {
+			if board[x][y] == 1 {
+				line += "⚫️"
+			} else {
+				line += "⚪️"
+			}
+		}
+		log.Println(line)
 	}
 }
 
@@ -345,5 +438,4 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 		default:
 		}
 	}
-
 }
