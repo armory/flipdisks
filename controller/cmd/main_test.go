@@ -9,12 +9,14 @@ import (
 
 func TestCreateVirtualBoard(t *testing.T) {
 	tests := []struct {
+		testDescription                string
 		panelWidth, numberOfPanelsWide int
 		message                        string
 
 		expect VirtualBoard
 	}{
 		{
+			testDescription:    "It should print out a simple message",
 			panelWidth:         7,
 			numberOfPanelsWide: 2,
 			message:            "ab",
@@ -31,6 +33,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 		},
 
 		{
+			testDescription:    "It should print out a simple message with new line",
 			panelWidth:         7,
 			numberOfPanelsWide: 2,
 			message:            "a\nb",
@@ -50,6 +53,31 @@ func TestCreateVirtualBoard(t *testing.T) {
 				{1, 1, 0, 0},
 				{0, 0, 0, 0},
 				{0, 0, 0, 0},
+			},
+		},
+
+		{
+			testDescription:    "It should word break on board overflow",
+			panelWidth:         4,         // size of a
+			numberOfPanelsWide: 2 + 1 + 2, // character breaking creates "aa aa\na" but we want "aa\naaa"
+			message:            "aa aaa",
+
+			// "aa\naaa"
+			expect: []fontmap.Row{
+				{0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 1, 1, 0, 0, 1, 1, 0},
+				{1, 0, 1, 0, 1, 0, 1, 0},
+				{1, 0, 1, 0, 1, 0, 1, 0},
+				{0, 1, 1, 0, 0, 1, 1, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0},
+				{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
+				{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
+				{0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			},
 		},
 	}
