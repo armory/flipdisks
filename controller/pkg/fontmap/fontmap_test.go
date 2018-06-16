@@ -46,10 +46,128 @@ func TestGenerateSpace(t *testing.T) {
 		},
 	}
 
-	for _, testCase := range tests {
+	for index, testCase := range tests {
 		got := GenerateSpace(testCase.width, testCase.height, testCase.fill)
 		if !reflect.DeepEqual(testCase.expected, got) {
-			t.Errorf("Expected %#v, but got %#v", testCase.expected, got)
+			t.Errorf("Test %d: Expected %#v, but got %#v", index, testCase.expected, got)
+			t.Errorf("Expected : \n%s", testCase.expected)
+			t.Errorf("Got: \n%s", got)
+		}
+	}
+}
+
+func TestAddKerning(t *testing.T) {
+	tests := []struct {
+		// conditions
+		letter          Letter
+		amountOfKerning int
+
+		// check against our result
+		expected Letter
+	}{
+		{
+			letter:          Letter{},
+			amountOfKerning: 0,
+			expected:        Letter{},
+		},
+
+		{
+			letter:          Letter{},
+			amountOfKerning: 1,
+			expected:        Letter{},
+		},
+
+
+		{
+			letter: Letter{
+				Row{},
+			},
+			amountOfKerning: 0,
+			expected: Letter{
+				Row{},
+			},
+		},
+
+		{
+			letter: Letter{
+				Row{},
+			},
+			amountOfKerning: 1,
+			expected: Letter{
+				Row{0},
+			},
+		},
+
+		{
+			letter: Letter{
+				Row{},
+			},
+			amountOfKerning: 2,
+			expected: Letter{
+				Row{0, 0},
+			},
+		},
+
+		{
+			letter: Letter{
+				Row{},
+			},
+			amountOfKerning: 3,
+			expected: Letter{
+				Row{0, 0, 0},
+			},
+		},
+
+		{
+			letter: Letter{
+				Row{1},
+			},
+			amountOfKerning: 0,
+			expected: Letter{
+				Row{1},
+			},
+		},
+
+		{
+			letter: Letter{
+				Row{1},
+			},
+			amountOfKerning: 1,
+			expected: Letter{
+				Row{1, 0},
+			},
+		},
+
+		{
+			letter: Letter{
+				Row{1},
+			},
+			amountOfKerning: -1,
+			expected: Letter{
+				Row{1},
+			},
+		},
+
+
+		{
+			letter: Letter{
+				{1, 0, 1},
+				{0, 1, 0},
+				{1, 0, 1},
+			},
+			amountOfKerning: 1,
+			expected: Letter{
+				{1, 0, 1, 0},
+				{0, 1, 0, 0},
+				{1, 0, 1, 0},
+			},
+		},
+	}
+
+	for index, testCase := range tests {
+		got := AddKerning(testCase.letter, testCase.amountOfKerning)
+		if !reflect.DeepEqual(testCase.expected, got) {
+			t.Errorf("Test %d: Expected %#v, but got %#v", index, testCase.expected, got)
 			t.Errorf("Expected : \n%s", testCase.expected)
 			t.Errorf("Got: \n%s", got)
 		}

@@ -1,5 +1,9 @@
 package fontmap
 
+import (
+	log "github.com/sirupsen/logrus"
+)
+
 type Font struct {
 	Name     string       `json:"name"`
 	Metadata MetadataType `json:"metadata"`
@@ -46,4 +50,20 @@ func GenerateSpace(width int, height int, fill int) Letter {
 	}
 
 	return space
+}
+
+// AddKerning will add trailing whitespace to the end of the letter
+func AddKerning(letter Letter, amountOfKerning int) Letter {
+	if amountOfKerning < 0 {
+		log.Error("AddKerning does not support negative amounts yet")
+		return letter
+	}
+
+	for rowIndex := range letter {
+			for j := 0; j < amountOfKerning; j++ {
+				letter[rowIndex] = append(letter[rowIndex], 0)
+			}
+	}
+
+	return letter
 }
