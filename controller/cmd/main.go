@@ -152,7 +152,7 @@ func main() {
 			switch char {
 			case " ", "\n":
 				spaceWidth := 2 // magic 2 for pretty printing letters with tails
-				msgCharsAsDots = append(msgCharsAsDots, generateSpace(spaceWidth, fontmap.TI84.Metadata.MaxHeight, 0))
+				msgCharsAsDots = append(msgCharsAsDots, fontmap.GenerateSpace(spaceWidth, fontmap.TI84.Metadata.MaxHeight, 0))
 
 			default:
 				dotLetter, charExists := fontmap.TI84.Charmap[char]
@@ -160,7 +160,7 @@ func main() {
 				if charExists {
 					msgCharsAsDots = append(msgCharsAsDots, addKerning(dotLetter, 0))
 				} else {
-					msgCharsAsDots = append(msgCharsAsDots, generateSpace(3, fontmap.TI84.Metadata.MaxHeight, 1))
+					msgCharsAsDots = append(msgCharsAsDots, fontmap.GenerateSpace(3, fontmap.TI84.Metadata.MaxHeight, 1))
 				}
 			}
 		}

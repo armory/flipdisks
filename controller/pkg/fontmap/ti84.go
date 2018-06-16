@@ -1,22 +1,5 @@
 package fontmap
 
-type Font struct {
-	Name     string       `json:"name"`
-	Metadata MetadataType `json:"metadata"`
-	Charmap  CharmapType  `json:"charmap"`
-}
-
-type MetadataType struct {
-	TallerCharacters map[string]int `json:"tallerCharacters"`
-	AverageHeight    int            `json:"averageHeight"`
-	AverageWidth     int            `json:"averageWidth"`
-	MaxHeight        int            `json:"maxHeight"`
-}
-
-type CharmapType map[string]Letter
-type Letter []Row
-type Row []int
-
 // Hard coded stuff for this font
 var TI84 Font = Font{
 	Name: "TI84",
