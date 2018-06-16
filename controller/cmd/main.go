@@ -158,7 +158,7 @@ func main() {
 				dotLetter, charExists := fontmap.TI84.Charmap[char]
 
 				if charExists {
-					msgCharsAsDots = append(msgCharsAsDots, addKerning(dotLetter, 0))
+					msgCharsAsDots = append(msgCharsAsDots, fontmap.AddKerning(dotLetter, 0))
 				} else {
 					msgCharsAsDots = append(msgCharsAsDots, fontmap.GenerateSpace(3, fontmap.TI84.Metadata.MaxHeight, 1))
 				}
@@ -317,32 +317,6 @@ func printBoard(board Board) {
 	}
 }
 
-func generateSpace(width int, height int, value int) fontmap.Letter {
-	var space fontmap.Letter
-	for j := 0; j < height; j++ {
-		var row fontmap.Row
-		for i := 0; i < width; i++ {
-			row = append(row, value)
-		}
-
-		space = append(space, row)
-	}
-
-	return space
-}
-
-func addKerning(letter fontmap.Letter, amountOfKerning int) fontmap.Letter {
-	var kernedLetter fontmap.Letter
-	for _, row := range letter {
-		kernedRow := row
-		for j := 0; j < amountOfKerning; j++ {
-			kernedRow = append(kernedRow, 0)
-		}
-		kernedLetter = append(kernedLetter, kernedRow)
-	}
-
-	return kernedLetter
-}
 
 func startVideoPlayer(playlist *Playlist, panels [][]*panel.Panel) {
 	for _, video := range playlist.Videos {
