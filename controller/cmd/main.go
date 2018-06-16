@@ -141,29 +141,7 @@ func main() {
 		msg = strings.Replace(msg, "&lt;", "<", -1)
 		msg = strings.Replace(msg, "&gt;", ">", -1)
 
-		// for each character in msg, we'll create the flipdisk rendered character
-		/*
-		  if the message is "hello world"
-		  then then we'll create ["h","e","l","l","o"," ","w","o","r","l","d"]
-		  which then will have each character turned into a 2x2 matrix of dots
-		  the final output will by an array of 2x2 matrixes
-		*/
-		for _, char := range strings.Split(msg, "") {
-			switch char {
-			case " ", "\n":
-				spaceWidth := 2 // magic 2 for pretty printing letters with tails
-				msgCharsAsDots = append(msgCharsAsDots, fontmap.GenerateSpace(spaceWidth, fontmap.TI84.Metadata.MaxHeight, 0))
-
-			default:
-				dotLetter, charExists := fontmap.TI84.Charmap[char]
-
-				if charExists {
-					msgCharsAsDots = append(msgCharsAsDots, fontmap.AddKerning(dotLetter, 0))
-				} else {
-					msgCharsAsDots = append(msgCharsAsDots, fontmap.GenerateSpace(3, fontmap.TI84.Metadata.MaxHeight, 1))
-				}
-			}
-		}
+		msgCharsAsDots = fontmap.Render(msg)
 
 		// we have to convert our long array of dotCharacters to a virtual board
 		var longestLine, lineNumber int
@@ -177,7 +155,7 @@ func main() {
 				lineNumber++
 				longestLine = 0
 
-				if msg[charIndexInMessage] == '\n' {
+				if msg[charIndexInMessage] == '\n' && charAsDots == nil {
 					continue
 				}
 			}

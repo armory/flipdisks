@@ -1,6 +1,8 @@
 package fontmap
 
 import (
+	"strings"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -66,4 +68,38 @@ func AddKerning(letter Letter, amountOfKerning int) Letter {
 	}
 
 	return letter
+}
+
+// Render will take each character in msg, and create the flipdisk rendered character
+// if the message is "hello world"
+// then then we'll create ["h","e","l","l","o"," ","w","o","r","l","d"]
+// which then will have each character turned into a 2x2 matrix of dots
+// the final output will by an array of 2x2 matrixes
+//
+// Special Conditions:
+//  - new lines are rendered to nil, you'll have to handle this separately
+//  - unknown characters will be rendered as a black space
+func Render(msg string) []Letter {
+	var msgCharsAsDots []Letter
+
+	for _, char := range strings.Split(msg, "") {
+		switch char {
+		case " ":
+			spaceWidth := 2 // magic 2 for pretty printing letters with tails
+			msgCharsAsDots = append(msgCharsAsDots, GenerateSpace(spaceWidth, TI84.Metadata.MaxHeight, 0))
+		case "\n":
+			msgCharsAsDots = append(msgCharsAsDots, nil)
+		default:
+			dotLetter, charExists := TI84.Charmap[char]
+
+			if charExists {
+				msgCharsAsDots = append(msgCharsAsDots, AddKerning(dotLetter, 0))
+			} else {
+				// todo, figure out if this is really how we ant to handle unknown characters
+				msgCharsAsDots = append(msgCharsAsDots, GenerateSpace(3, TI84.Metadata.MaxHeight, 1))
+			}
+		}
+	}
+
+	return msgCharsAsDots
 }

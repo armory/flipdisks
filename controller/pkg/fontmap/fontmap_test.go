@@ -173,3 +173,150 @@ func TestAddKerning(t *testing.T) {
 		}
 	}
 }
+
+func TestRender(t *testing.T) {
+	tests := []struct {
+		message string
+		expect  []Letter
+	}{
+		{message: "", expect: nil},
+		{message: "a", expect: []Letter{{
+			Row{0, 0, 0, 0},
+			Row{0, 1, 1, 0},
+			Row{1, 0, 1, 0},
+			Row{1, 0, 1, 0},
+			Row{0, 1, 1, 0},
+			Row{0, 0, 0, 0},
+			Row{0, 0, 0, 0},
+		}}},
+
+		{message: "a b", expect: []Letter{
+			{
+				Row{0, 0, 0, 0},
+				Row{0, 1, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{0, 1, 1, 0},
+				Row{0, 0, 0, 0},
+				Row{0, 0, 0, 0},
+			},
+			{
+				Row{0, 0},
+				Row{0, 0},
+				Row{0, 0},
+				Row{0, 0},
+				Row{0, 0},
+				Row{0, 0},
+				Row{0, 0},
+			},
+			{
+				Row{1, 0, 0, 0},
+				Row{1, 1, 0, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 1, 0, 0},
+				Row{0, 0, 0, 0},
+				Row{0, 0, 0, 0},
+			},
+		}},
+		{message: "aa bb", expect: []Letter{
+			{
+				Row{0, 0, 0, 0},
+				Row{0, 1, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{0, 1, 1, 0},
+				Row{0, 0, 0, 0},
+				Row{0, 0, 0, 0},
+			},
+			{
+				Row{0, 0, 0, 0},
+				Row{0, 1, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{0, 1, 1, 0},
+				Row{0, 0, 0, 0},
+				Row{0, 0, 0, 0},
+			},
+			{
+				Row{0, 0},
+				Row{0, 0},
+				Row{0, 0},
+				Row{0, 0},
+				Row{0, 0},
+				Row{0, 0},
+				Row{0, 0},
+			},
+			{
+				Row{1, 0, 0, 0},
+				Row{1, 1, 0, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 1, 0, 0},
+				Row{0, 0, 0, 0},
+				Row{0, 0, 0, 0},
+			},
+			{
+				Row{1, 0, 0, 0},
+				Row{1, 1, 0, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 1, 0, 0},
+				Row{0, 0, 0, 0},
+				Row{0, 0, 0, 0},
+			},
+		}},
+		{message: "a\nb", expect: []Letter{
+			{
+				Row{0, 0, 0, 0},
+				Row{0, 1, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{0, 1, 1, 0},
+				Row{0, 0, 0, 0},
+				Row{0, 0, 0, 0},
+			},
+			nil,
+			{
+				Row{1, 0, 0, 0},
+				Row{1, 1, 0, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 0, 1, 0},
+				Row{1, 1, 0, 0},
+				Row{0, 0, 0, 0},
+				Row{0, 0, 0, 0},
+			},
+		}},
+		{message: "Á", expect: []Letter{
+			{
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+			},
+		}},
+		{message: "🔥", expect: []Letter{
+			{
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+				Row{1, 1, 1},
+			},
+		}},
+
+	}
+	for index, testCase := range tests {
+		got := Render(testCase.message)
+		if !reflect.DeepEqual(testCase.expect, got) {
+			t.Errorf("Test %d", index)
+			t.Errorf("Expected\n%#v:\n%s", testCase.expect, testCase.expect)
+			t.Errorf("Got\n%#v:\n%s", got, got)
+		}
+	}
+}
