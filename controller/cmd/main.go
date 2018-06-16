@@ -59,7 +59,6 @@ type Playlist struct {
 	PanelAddressesLayout [][]int
 }
 
-
 func main() {
 	playlist := &Playlist{
 		Name:     "demo",
@@ -83,7 +82,7 @@ func main() {
 				FPS:          1,
 				SetNullTo:    0,
 				FrameDelayMs: 1000,
-				Frames:       []Board{{},},
+				Frames:       []Board{{}},
 			},
 		},
 	}
@@ -148,7 +147,7 @@ func main() {
 		  then then we'll create ["h","e","l","l","o"," ","w","o","r","l","d"]
 		  which then will have each character turned into a 2x2 matrix of dots
 		  the final output will by an array of 2x2 matrixes
-		   */
+		*/
 		for _, char := range strings.Split(msg, "") {
 			switch char {
 			case " ", "\n":
@@ -402,7 +401,14 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 			//fmt.Printf("Message: %+v\n\n", ev)
 			fmt.Printf("GOT MESSAGE: %+v\n", ev.Msg.Text)
 			flipbotUserId := "UASEXQA04"
-			messages <- ev.Msg.Text
+
+			if ev.SubMessage != nil {
+				// someone edited their old message, let's display it
+				messages <- ev.SubMessage.Text
+			} else {
+				messages <- ev.Msg.Text
+			}
+
 			if strings.Contains(ev.Msg.Text, flipbotUserId) {
 				flipTableWordList := []string{
 					"flip",
