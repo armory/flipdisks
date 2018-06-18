@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -202,29 +203,58 @@ func createVirtualBoard(panelWidth int, numberOfPanelsWide int, msgCharsAsDots [
 	var virtualBoard VirtualBoard
 
 	// join the letters together to form one long string
-	for charIndexInMessage, charAsDots := range msgCharsAsDots {
+	for charIndexInMessage := 0; charIndexInMessage < len(msgCharsAsDots); charIndexInMessage++ {
+		charAsDots := msgCharsAsDots[charIndexInMessage]
+
+		// handle line breaks
 		if msg[charIndexInMessage] == '\n' && charAsDots == nil {
 			lineNumber++
 			longestLine = 0
 			continue
 		}
 
-		if longestLine+len(charAsDots[0]) > lineMaxWidth {
+		// try to word break, if it doesn't work, then we'lll need to character break
+		if msg[charIndexInMessage] == ' ' {
+			r, _ := regexp.Compile("\\w+")
+			unprocessedStringMsg := msg[charIndexInMessage:] // msg will look something like: "   bbb"
+			unprocessedDotMessage := msgCharsAsDots[charIndexInMessage:]
+
+			matchPos := r.FindStringIndex(unprocessedStringMsg) // matchPos[0] will be the first "b"
+			nextDotWord := unprocessedDotMessage[matchPos[0]:matchPos[1]]
+
+			// find the width of dots for the word
+			wordDotWidth := 0
+			for _, dotWord := range nextDotWord {
+				wordDotWidth += len(dotWord[0])
+			}
+
+			// since we're breaking on the word, we should discard all the whitespace before the word
+			if longestLine+wordDotWidth > lineMaxWidth {
+				lineNumber++
+				longestLine = 0
+
+				// advance our pointer to the beginning of the next word
+				charIndexInMessage += matchPos[0]
+				charAsDots = msgCharsAsDots[charIndexInMessage]
+			}
+		} else if longestLine+len(charAsDots[0]) > lineMaxWidth {
+			// if there's no spaces, and the word is super long, let's fallback and do a character break
 			lineNumber++
 			longestLine = 0
 		}
 
+		// write character to the virtual board
 		for charRowIndex, charRow := range charAsDots {
 			boardCharRowIndex := charRowIndex + (lineNumber * fontmap.TI84.Metadata.MaxHeight)
-			//log.Println(len(virtualBoard), boardCharRowIndex, charRowIndex, lineNumber, fontmap.TI84.Metadata.MaxHeight)
-			for len(virtualBoard) <= boardCharRowIndex { // 2 < 2
+
+			// create all missing rows from the virtual board, up to our current boardCharRowIndex
+			for len(virtualBoard) <= boardCharRowIndex {
 				virtualBoard = append(virtualBoard, fontmap.Row{})
 			}
 
-			//log.Printf("writing to line number: %d, boardCharRowIndex %d", lineNumber, boardCharRowIndex)
-			//log.Print("row:", charRow)
 			virtualBoard[boardCharRowIndex] = append(virtualBoard[boardCharRowIndex], charRow...)
 
+			// keep track of the longest char row for the line
 			if longestLine < len(virtualBoard[boardCharRowIndex]) {
 				longestLine = len(virtualBoard[boardCharRowIndex])
 			}
@@ -248,8 +278,6 @@ func (board VirtualBoard) String() string {
 
 	return line
 }
-
-
 
 func debugPanelAddressByGoingInOrder(panels [][]*panel.Panel) {
 	// clear all boards
@@ -321,7 +349,6 @@ func printBoard(board VirtualBoard) {
 		log.Println(line)
 	}
 }
-
 
 func startVideoPlayer(playlist *Playlist, panels [][]*panel.Panel) {
 	for _, video := range playlist.Videos {

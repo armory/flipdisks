@@ -58,12 +58,12 @@ func TestCreateVirtualBoard(t *testing.T) {
 
 		{
 			testDescription:    "It should word break on board overflow",
-			panelWidth:         4,         // size of a
-			numberOfPanelsWide: 2 + 1 + 2, // character breaking creates "aa aa\na" but we want "aa\naaa"
-			message:            "aa aaa",
+			panelWidth:         4, // size of a
+			numberOfPanelsWide: 4,
+			message:            "aa bbb ccc",
 
-			// "aa\naaa"
 			expect: []fontmap.Row{
+				// aa
 				{0, 0, 0, 0, 0, 0, 0, 0},
 				{0, 1, 1, 0, 0, 1, 1, 0},
 				{1, 0, 1, 0, 1, 0, 1, 0},
@@ -71,13 +71,48 @@ func TestCreateVirtualBoard(t *testing.T) {
 				{0, 1, 1, 0, 0, 1, 1, 0},
 				{0, 0, 0, 0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0, 0, 0, 0},
-				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				{0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0},
+				// bbb
+				{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+				{1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0},
 				{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
 				{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
+				{1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				// ccc
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0},
+				{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+				{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
 				{0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0},
 				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			},
+		},
+
+		{
+			testDescription:    "It should still character break if the word is long and there's no spaces",
+			panelWidth:         4, // size of "a"
+			numberOfPanelsWide: 4, // number of characters that can fit on a line
+			message:            "aaaaaa",
+
+			expect: []fontmap.Row{
+				// aaa
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0},
+				{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
+				{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
+				{0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				// aa
+				{0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 1, 1, 0, 0, 1, 1, 0},
+				{1, 0, 1, 0, 1, 0, 1, 0},
+				{1, 0, 1, 0, 1, 0, 1, 0},
+				{0, 1, 1, 0, 0, 1, 1, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0},
 			},
 		},
 	}
