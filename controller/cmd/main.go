@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -121,7 +122,7 @@ func main() {
 	go startSlackListener(*slackToken, playlist, panels, messages)
 	var msgCharsAsDots []fontmap.Letter
 
-	var board []Row
+	var virtualBoard VirtualBoard
 
 	for msg := range messages {
 		if msg == "debug all panels" || msg == "debug panels" {
@@ -133,58 +134,25 @@ func main() {
 			debugSinglePanel(panels, panelAddress)
 		}
 
-		// clear the message and the board, ready for the next message
+		// clear the message and the virtualBoard, ready for the next message
 		msgCharsAsDots = msgCharsAsDots[:0]
-		board = board[:0]
+		virtualBoard = virtualBoard[:0]
 
 		// replace slack tokens that are rendered to characters
 		msg = strings.Replace(msg, "&lt;", "<", -1)
 		msg = strings.Replace(msg, "&gt;", ">", -1)
 
 		msgCharsAsDots = fontmap.Render(msg)
+		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
 
-		// we have to convert our long array of dotCharacters to a virtual board
-		var longestLine, lineNumber int
-		longestLine = 0
-		lineNumber = 0
-		lineMaxWidth := playlist.PanelInfo.PhysicallyDisplayedWidth * len(playlist.PanelAddressesLayout[0])
-
-		// join the letters together to form one long string
-		for charIndexInMessage, charAsDots := range msgCharsAsDots {
-			if longestLine+len(charAsDots[0]) > lineMaxWidth || msg[charIndexInMessage] == '\n' {
-				lineNumber++
-				longestLine = 0
-
-				if msg[charIndexInMessage] == '\n' && charAsDots == nil {
-					continue
-				}
-			}
-
-			for charRowIndex, charRow := range charAsDots {
-				boardCharRowIndex := charRowIndex + (lineNumber * fontmap.TI84.Metadata.MaxHeight)
-				//log.Println(len(board), boardCharRowIndex, charRowIndex, lineNumber, fontmap.TI84.Metadata.MaxHeight)
-				for len(board) <= boardCharRowIndex { // 2 < 2
-					board = append(board, Row{})
-				}
-
-				//log.Printf("writing to line number: %d, boardCharRowIndex %d", lineNumber, boardCharRowIndex)
-				//log.Print("row:", charRow)
-				board[boardCharRowIndex] = append(board[boardCharRowIndex], charRow...)
-
-				if longestLine < len(board[boardCharRowIndex]) {
-					longestLine = len(board[boardCharRowIndex])
-				}
-			}
-		}
-
-		printBoard(board)
+		printBoard(virtualBoard)
 
 		frameIndex := 0
 		frameIndex = frameIndex
 
-		// convert virtual board to a physical board
-		for x := 0; x < len(board); x++ {
-			for y := 0; y < len(board[x]); y++ {
+		// convert virtual virtualBoard to a physical virtualBoard
+		for x := 0; x < len(virtualBoard); x++ {
+			for y := 0; y < len(virtualBoard[x]); y++ {
 				panelXCoord := x / playlist.PanelInfo.PanelWidth
 				panelYCoord := y / playlist.PanelInfo.PanelHeight
 
@@ -203,13 +171,13 @@ func main() {
 				// which dot should we set?
 				dotXCoord := x % playlist.PanelInfo.PanelWidth
 				dotYCoord := y % playlist.PanelInfo.PanelHeight
-				dotValue := board[x][y] == 1
+				dotValue := virtualBoard[x][y] == 1
 				//log.Printf("Setting panel(%d,%d), adddress %d, dot(%d,%d) with %t", panelXCoord, panelYCoord, p.Address, dotXCoord, dotYCoord, dotValue)
 				p.Set(dotXCoord, dotYCoord, dotValue)
 			}
 		}
 
-		// print the panels
+		// send our virtual panels to the physical virtualBoard
 		for y, row := range panels {
 			for x, p := range row {
 				y = y
@@ -222,6 +190,93 @@ func main() {
 			}
 		}
 	}
+}
+
+type VirtualBoard []fontmap.Row
+
+func createVirtualBoard(panelWidth int, numberOfPanelsWide int, msgCharsAsDots []fontmap.Letter, msg string) VirtualBoard {
+	// we have to convert our long array of dotCharacters to a virtual board
+	var longestLine, lineNumber int
+	longestLine = 0
+	lineNumber = 0
+	lineMaxWidth := panelWidth * numberOfPanelsWide
+	var virtualBoard VirtualBoard
+
+	// join the letters together to form one long string
+	for charIndexInMessage := 0; charIndexInMessage < len(msgCharsAsDots); charIndexInMessage++ {
+		charAsDots := msgCharsAsDots[charIndexInMessage]
+
+		// handle line breaks
+		if msg[charIndexInMessage] == '\n' && charAsDots == nil {
+			lineNumber++
+			longestLine = 0
+			continue
+		}
+
+		// try to word break, if it doesn't work, then we'lll need to character break
+		if msg[charIndexInMessage] == ' ' {
+			r, _ := regexp.Compile("\\w+")
+			unprocessedStringMsg := msg[charIndexInMessage:] // msg will look something like: "   bbb"
+			unprocessedDotMessage := msgCharsAsDots[charIndexInMessage:]
+
+			matchPos := r.FindStringIndex(unprocessedStringMsg) // matchPos[0] will be the first "b"
+			nextDotWord := unprocessedDotMessage[matchPos[0]:matchPos[1]]
+
+			// find the width of dots for the word
+			wordDotWidth := 0
+			for _, dotWord := range nextDotWord {
+				wordDotWidth += len(dotWord[0])
+			}
+
+			// since we're breaking on the word, we should discard all the whitespace before the word
+			if longestLine+wordDotWidth > lineMaxWidth {
+				lineNumber++
+				longestLine = 0
+
+				// advance our pointer to the beginning of the next word
+				charIndexInMessage += matchPos[0]
+				charAsDots = msgCharsAsDots[charIndexInMessage]
+			}
+		} else if longestLine+len(charAsDots[0]) > lineMaxWidth {
+			// if there's no spaces, and the word is super long, let's fallback and do a character break
+			lineNumber++
+			longestLine = 0
+		}
+
+		// write character to the virtual board
+		for charRowIndex, charRow := range charAsDots {
+			boardCharRowIndex := charRowIndex + (lineNumber * fontmap.TI84.Metadata.MaxHeight)
+
+			// create all missing rows from the virtual board, up to our current boardCharRowIndex
+			for len(virtualBoard) <= boardCharRowIndex {
+				virtualBoard = append(virtualBoard, fontmap.Row{})
+			}
+
+			virtualBoard[boardCharRowIndex] = append(virtualBoard[boardCharRowIndex], charRow...)
+
+			// keep track of the longest char row for the line
+			if longestLine < len(virtualBoard[boardCharRowIndex]) {
+				longestLine = len(virtualBoard[boardCharRowIndex])
+			}
+		}
+	}
+	return virtualBoard
+}
+
+func (board VirtualBoard) String() string {
+	line := ""
+	for x := 0; x < len(board); x++ {
+		for y := 0; y < len(board[x]); y++ {
+			if board[x][y] == 1 {
+				line += "⚫️"
+			} else {
+				line += "⚪️"
+			}
+		}
+		line += "\n"
+	}
+
+	return line
 }
 
 func debugPanelAddressByGoingInOrder(panels [][]*panel.Panel) {
@@ -281,7 +336,7 @@ func debugSinglePanel(panels [][]*panel.Panel, address int) {
 	}
 }
 
-func printBoard(board Board) {
+func printBoard(board VirtualBoard) {
 	for x := 0; x < len(board); x++ {
 		line := ""
 		for y := 0; y < len(board[x]); y++ {
@@ -294,7 +349,6 @@ func printBoard(board Board) {
 		log.Println(line)
 	}
 }
-
 
 func startVideoPlayer(playlist *Playlist, panels [][]*panel.Panel) {
 	for _, video := range playlist.Videos {
