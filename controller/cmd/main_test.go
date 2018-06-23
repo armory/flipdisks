@@ -115,6 +115,40 @@ func TestCreateVirtualBoard(t *testing.T) {
 				{0, 0, 0, 0, 0, 0, 0, 0},
 			},
 		},
+
+		{
+			testDescription:    "It should print out a special character",
+			panelWidth:         4,
+			numberOfPanelsWide: 2,
+			message:            "$",
+
+			expect: []fontmap.Row{
+				{0, 1, 1, 1, 0, 0},
+				{1, 0, 1, 0, 0, 0},
+				{0, 1, 1, 1, 0, 0},
+				{0, 0, 1, 0, 1, 0},
+				{1, 1, 1, 1, 0, 0},
+				{0, 0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0, 0},
+			},
+		},
+		{
+			testDescription:    "It should handle spacing in between special characters",
+			panelWidth:         4, // size of "?"
+			numberOfPanelsWide: 4, // number of characters that can fit on a line
+			message:            "? ?",
+
+			expect: []fontmap.Row{
+				//? ?
+				{1, 1, 0, 0, 0, 0, 1, 1, 0, 0},
+				{0, 0, 1, 0, 0, 0, 0, 0, 1, 0},
+				{0, 1, 0, 0, 0, 0, 0, 1, 0, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 1, 0, 0, 0, 0, 0, 1, 0, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			},
+		},
 	}
 
 	for index, testCase := range tests {

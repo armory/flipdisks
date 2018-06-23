@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/kevinawoo/flipdots/panel"
 	"github.com/nlopes/slack"
+	"regexp"
 )
 
 type MetadataType struct {
@@ -215,7 +215,7 @@ func createVirtualBoard(panelWidth int, numberOfPanelsWide int, msgCharsAsDots [
 
 		// try to word break, if it doesn't work, then we'lll need to character break
 		if msg[charIndexInMessage] == ' ' {
-			r, _ := regexp.Compile("\\w+")
+			r, _ := regexp.Compile(`\S+`)
 			unprocessedStringMsg := msg[charIndexInMessage:] // msg will look something like: "   bbb"
 			unprocessedDotMessage := msgCharsAsDots[charIndexInMessage:]
 
@@ -258,6 +258,7 @@ func createVirtualBoard(panelWidth int, numberOfPanelsWide int, msgCharsAsDots [
 			if longestLine < len(virtualBoard[boardCharRowIndex]) {
 				longestLine = len(virtualBoard[boardCharRowIndex])
 			}
+
 		}
 	}
 	return virtualBoard
