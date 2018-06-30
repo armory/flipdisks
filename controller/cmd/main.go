@@ -407,20 +407,7 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 		//fmt.Print("Event Received: ")
 		switch ev := msg.Data.(type) {
 		case *slack.MessageEvent:
-			//fmt.Printf("Message: %+v\n\n", ev)
-			fmt.Printf("GOT MESSAGE: %+v\n", ev.Msg.Text)
-
-			if ev.Msg.Text == "help" {
-				respondWithHelpMsg(rtm, ev.Msg.Channel)
-				continue
-			}
-
-			if ev.SubMessage != nil {
-				// someone edited their old message, let's display it
-				flipboardMsgChn <- ev.SubMessage.Text
-			} else {
-				flipboardMsgChn <- ev.Msg.Text
-			}
+			handleSlackMsg(ev, rtm, flipboardMsgChn)
 
 		case *slack.InvalidAuthEvent:
 			fmt.Printf("Invalid credentials")
@@ -428,6 +415,22 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 
 		default:
 		}
+	}
+}
+
+func handleSlackMsg(ev interface{}, rtm *slack.RTM, flipboardMsgChn chan string) {
+	//fmt.Printf("Message: %+v\n\n", ev)
+	fmt.Printf("GOT MESSAGE: %+v\n", ev.Msg.Text)
+	if ev.Msg.Text == "help" {
+		respondWithHelpMsg(rtm, ev.Msg.Channel)
+		return
+	}
+
+	if ev.SubMessage != nil {
+		// someone edited their old message, let's display it
+		flipboardMsgChn <- ev.SubMessage.Text
+	} else {
+		flipboardMsgChn <- ev.Msg.Text
 	}
 }
 
