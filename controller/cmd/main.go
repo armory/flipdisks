@@ -61,6 +61,8 @@ type Playlist struct {
 }
 
 func main() {
+	log.Print("Starting")
+
 	playlist := &Playlist{
 		Name:     "demo",
 		Location: "armorywall",
@@ -410,7 +412,7 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 			flipbotUserId := "UASEXQA04"
 
 			if ev.Msg.Text == "help" {
-				respondWithHelpMsg(rtm)
+				respondWithHelpMsg(rtm, ev.Msg.Channel)
 				continue
 			}
 
@@ -460,9 +462,6 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 	}
 }
 
-func respondWithHelpMsg(rtm *slack.RTM) {
-	rtm.SendMessage(rtm.NewOutgoingMessage("What can I help you with?", "DAZ6XPGJ1"))
+func respondWithHelpMsg(rtm *slack.RTM, channelId string) {
+	rtm.SendMessage(rtm.NewOutgoingMessage("What can I help you with?", channelId))
 }
-
-
-
