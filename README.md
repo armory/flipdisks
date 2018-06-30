@@ -19,3 +19,14 @@ This is our main hardware controller for the boards.
 #### USB to RS485 Serial Data Converter
 A simple USB data converter. 1 of these can talk to 10 (14x28) AlphaZeta panels.  
 [Non-affiliate link](https://www.amazon.com/gp/product/B0721BB8PQ)
+
+
+
+# Deploying controller
+After working on the code, you can deploy it by:
+```bash
+ssh-copy-id pi@192.168.86.26  # add your key for easy login
+
+./bin/build-controller.sh
+./bin/deploy-controller.sh
+```
