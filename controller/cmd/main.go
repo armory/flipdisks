@@ -409,7 +409,6 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 		case *slack.MessageEvent:
 			//fmt.Printf("Message: %+v\n\n", ev)
 			fmt.Printf("GOT MESSAGE: %+v\n", ev.Msg.Text)
-			flipbotUserId := "UASEXQA04"
 
 			if ev.Msg.Text == "help" {
 				respondWithHelpMsg(rtm, ev.Msg.Channel)
@@ -421,36 +420,6 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 				flipboardMsgChn <- ev.SubMessage.Text
 			} else {
 				flipboardMsgChn <- ev.Msg.Text
-			}
-
-
-			if strings.Contains(ev.Msg.Text, flipbotUserId) {
-				flipTableWordList := []string{
-					"flip",
-					"table",
-				}
-
-				curseWords := []string{
-					"fuck",
-					"god",
-					"damn",
-					"ass",
-				}
-
-				for _, word := range curseWords {
-					if strings.Contains(ev.Msg.Text, word) {
-						rtm.SendMessage(rtm.NewOutgoingMessage("Yo, watch your language, you dick head...", "DAZ6XPGJ1"))
-						break
-					}
-				}
-
-				for _, word := range flipTableWordList {
-					if strings.Contains(ev.Msg.Text, word) {
-						rtm.SendMessage(rtm.NewOutgoingMessage("Flipping the table (╯°□°）╯︵ ┻━┻", "DAZ6XPGJ1"))
-						break
-					}
-				}
-
 			}
 
 		case *slack.InvalidAuthEvent:
