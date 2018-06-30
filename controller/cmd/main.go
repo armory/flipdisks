@@ -392,7 +392,7 @@ func startVideoPlayer(playlist *Playlist, panels [][]*panel.Panel) {
 	}
 }
 
-func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel.Panel, messages chan string) {
+func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel.Panel, flipboardMsgChn chan string) {
 	api := slack.New(slackToken)
 	logger := log.New(os.Stdout, "slack-bot: ", log.Lshortfile|log.LstdFlags)
 	slack.SetLogger(logger)
@@ -409,12 +409,18 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 			fmt.Printf("GOT MESSAGE: %+v\n", ev.Msg.Text)
 			flipbotUserId := "UASEXQA04"
 
+			if ev.Msg.Text == "help" {
+				respondWithHelpMsg(rtm)
+				continue
+			}
+
 			if ev.SubMessage != nil {
 				// someone edited their old message, let's display it
-				messages <- ev.SubMessage.Text
+				flipboardMsgChn <- ev.SubMessage.Text
 			} else {
-				messages <- ev.Msg.Text
+				flipboardMsgChn <- ev.Msg.Text
 			}
+
 
 			if strings.Contains(ev.Msg.Text, flipbotUserId) {
 				flipTableWordList := []string{
@@ -442,6 +448,7 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 						break
 					}
 				}
+
 			}
 
 		case *slack.InvalidAuthEvent:
@@ -452,3 +459,10 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 		}
 	}
 }
+
+func respondWithHelpMsg(rtm *slack.RTM) {
+	rtm.SendMessage(rtm.NewOutgoingMessage("What can I help you with?", "DAZ6XPGJ1"))
+}
+
+
+
