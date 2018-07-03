@@ -14,6 +14,7 @@ import (
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/kevinawoo/flipdots/panel"
 	"github.com/nlopes/slack"
+	"gopkg.in/yaml.v2"
 )
 
 type MetadataType struct {
@@ -59,6 +60,15 @@ type Playlist struct {
 	PanelInfo            PanelInfo
 	PanelAddressesLayout [][]int
 }
+
+type FlipBoardDisplayOptions struct {
+	Append   bool   `yaml:"append"`
+	Align    string `yaml:"align"`
+	FontSize int    `yaml:"font-size"`
+	Kerning  int    `yaml:"kerning"`
+}
+
+var flipBoardDisplayOptions FlipBoardDisplayOptions
 
 func main() {
 	log.Print("Starting")
@@ -121,6 +131,7 @@ func main() {
 	}
 
 	messages := make(chan string)
+	flipBoardDisplayOptions.Append = false
 	go startSlackListener(*slackToken, playlist, panels, messages)
 	var msgCharsAsDots []fontmap.Letter
 
@@ -419,9 +430,19 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 }
 
 func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan string) {
-	//fmt.Printf("Message: %+v\n\n", ev)
-	msg := ev.Msg.Text
-	fmt.Printf("Received Message: %+v\n", msg)
+	rawMsg := ev.Msg.Text
+	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
+	msgOptions := regexp.MustCompile("\\s*---\\s*").Split(rawMsg, -1)
+	msg := msgOptions[0]
+	var rawOptions string
+	if len(msgOptions) > 1 {
+		rawOptions = msgOptions[1]
+	}
+
+	err := yaml.Unmarshal([]byte(rawOptions), &flipBoardDisplayOptions)
+	err = err
+	fmt.Printf("%#v \n", flipBoardDisplayOptions)
+
 
 	msg = renderSlackUsernames(msg, rtm)
 
@@ -459,5 +480,23 @@ func renderSlackUsernames(msg string, rtm *slack.RTM) string {
 }
 
 func respondWithHelpMsg(rtm *slack.RTM, channelId string) {
-	rtm.SendMessage(rtm.NewOutgoingMessage("What can I help you with?", channelId))
+	msg := `Send me a DM and I'll display that. 
+You can also change settings by doing:
+`
+
+	msg += "```"
+	msg += `
+Your cool message here!
+--- 
+append: true/false	 // overwrite or add to the board
+`
+
+// we would like to add support for this in the future
+//align: center center   // horizontal vertical
+//kerning: 0	         // spacing between letters
+//font-size: 1           // ??
+
+
+	msg += "```"
+	rtm.SendMessage(rtm.NewOutgoingMessage(msg, channelId))
 }
