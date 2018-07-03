@@ -418,7 +418,7 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 	}
 }
 
-func handleSlackMsg(ev interface{}, rtm *slack.RTM, flipboardMsgChn chan string) {
+func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan string) {
 	//fmt.Printf("Message: %+v\n\n", ev)
 	fmt.Printf("GOT MESSAGE: %+v\n", ev.Msg.Text)
 	if ev.Msg.Text == "help" {
