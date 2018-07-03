@@ -151,10 +151,6 @@ func main() {
 		msgCharsAsDots = msgCharsAsDots[:0]
 		virtualBoard = virtualBoard[:0]
 
-		// replace slack tokens that are rendered to characters
-		msg = strings.Replace(msg, "&lt;", "<", -1)
-		msg = strings.Replace(msg, "&gt;", ">", -1)
-
 		msgCharsAsDots = fontmap.Render(msg)
 		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
 
@@ -228,11 +224,10 @@ func createVirtualBoard(panelWidth int, numberOfPanelsWide int, msgCharsAsDots [
 
 		// try to word break, if it doesn't work, then we'lll need to character break
 		if msg[charIndexInMessage] == ' ' {
-			r, _ := regexp.Compile(`\S+`)
 			unprocessedStringMsg := msg[charIndexInMessage:] // msg will look something like: "   bbb"
 			unprocessedDotMessage := msgCharsAsDots[charIndexInMessage:]
 
-			matchPos := r.FindStringIndex(unprocessedStringMsg) // matchPos[0] will be the first "b"
+			matchPos := regexp.MustCompile(`\S+`).FindStringIndex(unprocessedStringMsg) // matchPos[0] will be the first "b"
 			nextDotWord := unprocessedDotMessage[matchPos[0]:matchPos[1]]
 
 			// find the width of dots for the word
@@ -432,19 +427,15 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan string) {
 	rawMsg := ev.Msg.Text
 	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
+
 	msgOptions := regexp.MustCompile("\\s*---\\s*").Split(rawMsg, -1)
 	msg := msgOptions[0]
-	var rawOptions string
 	if len(msgOptions) > 1 {
-		rawOptions = msgOptions[1]
+		setFlipboardOptions(msgOptions[1])
 	}
 
-	err := yaml.Unmarshal([]byte(rawOptions), &flipBoardDisplayOptions)
-	err = err
-	fmt.Printf("%#v \n", flipBoardDisplayOptions)
-
-
 	msg = renderSlackUsernames(msg, rtm)
+	msg = cleanupSlackEncodedCharacters(msg)
 
 	fmt.Printf("Rendering message: %+v\n", msg)
 	if msg == "help" {
@@ -460,9 +451,21 @@ func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan
 	}
 }
 
+func cleanupSlackEncodedCharacters(msg string) string {
+	// replace slack tokens that are rendered to characters
+	msg = strings.Replace(msg, "&lt;", "<", -1)
+	msg = strings.Replace(msg, "&gt;", ">", -1)
+	return msg
+}
+
+func setFlipboardOptions(rawOptions string) {
+	err := yaml.Unmarshal([]byte(rawOptions), &flipBoardDisplayOptions)
+	err = err
+	fmt.Printf("%#v \n", flipBoardDisplayOptions)
+}
+
 func renderSlackUsernames(msg string, rtm *slack.RTM) string {
-	userIdRegex, _ := regexp.Compile("<@\\w+>")
-	userIds := userIdRegex.FindAllString(msg, -1)
+	userIds := regexp.MustCompile("<@\\w+>").FindAllString(msg, -1)
 	for _, slackFmtMsgUserId := range userIds {
 		// in the message we'll receive something like "<@U123123>", the id is actually "U123123"
 		userId := strings.Replace(strings.Replace(slackFmtMsgUserId, "<@", "", 1), ">", "", 1)
