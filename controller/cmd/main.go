@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/kevinawoo/flipdots/panel"
 	"github.com/nlopes/slack"
-	"regexp"
 )
 
 type MetadataType struct {
@@ -420,8 +420,13 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 
 func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan string) {
 	//fmt.Printf("Message: %+v\n\n", ev)
-	fmt.Printf("GOT MESSAGE: %+v\n", ev.Msg.Text)
-	if ev.Msg.Text == "help" {
+	msg := ev.Msg.Text
+	fmt.Printf("Received Message: %+v\n", msg)
+
+	msg = renderSlackUsernames(msg, rtm)
+
+	fmt.Printf("Rendering message: %+v\n", msg)
+	if msg == "help" {
 		respondWithHelpMsg(rtm, ev.Msg.Channel)
 		return
 	}
@@ -430,8 +435,27 @@ func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan
 		// someone edited their old message, let's display it
 		flipboardMsgChn <- ev.SubMessage.Text
 	} else {
-		flipboardMsgChn <- ev.Msg.Text
+		flipboardMsgChn <- msg
 	}
+}
+
+func renderSlackUsernames(msg string, rtm *slack.RTM) string {
+	userIdRegex, _ := regexp.Compile("<@\\w+>")
+	userIds := userIdRegex.FindAllString(msg, -1)
+	for _, slackFmtMsgUserId := range userIds {
+		// in the message we'll receive something like "<@U123123>", the id is actually "U123123"
+		userId := strings.Replace(strings.Replace(slackFmtMsgUserId, "<@", "", 1), ">", "", 1)
+
+		user, err := rtm.GetUserInfo(userId)
+		if err != nil {
+			name := user.Name
+			if user.Profile.FirstName != "" {
+				name = user.Profile.FirstName
+			}
+			msg = strings.Replace(msg, "<@"+user.ID+">", name, -1)
+		}
+	}
+	return msg
 }
 
 func respondWithHelpMsg(rtm *slack.RTM, channelId string) {
