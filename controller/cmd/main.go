@@ -4,7 +4,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"image"
+	"image/color"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -13,6 +19,7 @@ import (
 
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/kevinawoo/flipdots/panel"
+	"github.com/nfnt/resize"
 	"github.com/nlopes/slack"
 	"gopkg.in/yaml.v2"
 )
@@ -62,13 +69,18 @@ type Playlist struct {
 }
 
 type FlipBoardDisplayOptions struct {
-	Append   bool   `yaml:"append"`
-	Align    string `yaml:"align"`
-	FontSize int    `yaml:"font-size"`
-	Kerning  int    `yaml:"kerning"`
+	Append      bool   `yaml:"append"`
+	Align       string `yaml:"align"`
+	FontSize    int    `yaml:"font-size"`
+	Kerning     int    `yaml:"kerning"`
+	Invert      bool   `yaml:"invert"`
+	BWThreshold uint   `yaml:"bwThreshold"`
 }
 
-var flipBoardDisplayOptions FlipBoardDisplayOptions
+var flipBoardDisplayOptions = FlipBoardDisplayOptions{
+	Invert:      false,
+	BWThreshold: 256 / 2,
+}
 
 func main() {
 	log.Print("Starting")
@@ -137,6 +149,7 @@ func main() {
 
 	var virtualBoard VirtualBoard
 
+	// handle messages
 	for msg := range messages {
 		if msg == "debug all panels" || msg == "debug panels" {
 			debugPanelAddressByGoingInOrder(panels)
@@ -152,7 +165,13 @@ func main() {
 		virtualBoard = virtualBoard[:0]
 
 		msgCharsAsDots = fontmap.Render(msg)
-		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
+
+		matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g|gif)").FindStringSubmatch(msg)
+		if len(matchedUrls) > 0 {
+			virtualBoard = downloadImage(playlist, matchedUrls[0], flipBoardDisplayOptions.Invert, flipBoardDisplayOptions.BWThreshold)
+		} else {
+			virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
+		}
 
 		printBoard(virtualBoard)
 
@@ -199,6 +218,45 @@ func main() {
 			}
 		}
 	}
+}
+
+func downloadImage(playlist *Playlist, imgUrl string, invertImage bool, bwThreshold uint) VirtualBoard {
+	resp, err := http.Get(imgUrl)
+	defer resp.Body.Close()
+	m, _, err := image.Decode(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	maxWidth := uint(playlist.PanelInfo.PanelHeight * len(playlist.PanelAddressesLayout[0]))
+	maxHeight := uint(playlist.PanelInfo.PanelWidth * len(playlist.PanelAddressesLayout))
+	m = resize.Thumbnail(maxWidth, maxHeight, m, resize.Lanczos3)
+	bounds := m.Bounds()
+	fmt.Printf("%#v \n", bounds)
+	var virtualImgBoard VirtualBoard
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		row := fontmap.Row{}
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			r, g, b, _ := m.At(x, y).RGBA()
+			lum := 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
+			pixel := color.Gray{uint8(lum / 256)}
+
+			var flipdotPixelValue bool
+
+			if pixel.Y < uint8(bwThreshold) {
+				flipdotPixelValue = !invertImage
+			} else {
+				flipdotPixelValue = invertImage
+			}
+
+			if flipdotPixelValue {
+				row = append(row, 1)
+			} else {
+				row = append(row, 0)
+			}
+		}
+		virtualImgBoard = append(virtualImgBoard, row)
+	}
+	return virtualImgBoard
 }
 
 type VirtualBoard []fontmap.Row
@@ -426,6 +484,10 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 
 func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan string) {
 	rawMsg := ev.Msg.Text
+	if ev.SubMessage != nil {
+		rawMsg = ev.SubMessage.Text
+	}
+
 	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
 
 	msgOptions := regexp.MustCompile("\\s*---\\s*").Split(rawMsg, -1)
@@ -443,12 +505,7 @@ func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan
 		return
 	}
 
-	if ev.SubMessage != nil {
-		// someone edited their old message, let's display it
-		flipboardMsgChn <- ev.SubMessage.Text
-	} else {
-		flipboardMsgChn <- msg
-	}
+	flipboardMsgChn <- msg
 }
 
 func cleanupSlackEncodedCharacters(msg string) string {
