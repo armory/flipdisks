@@ -571,9 +571,9 @@ You can also supply options for the board by doing:
 	msg += `
 Your message or img url goes here.
 --
-inverted:     # (true/false) value to invert an image
+inverted:     # (true/false) invert the text or image
 bwThreshold:  # (0-256) set the threshold value for either "on" or "off"
-fill:         # (true/false) true for on, false for off
+fill:         # (true/false) fill the board with:  true for on, false for off
 `
 
 // we would like to add support for this in the future
