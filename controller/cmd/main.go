@@ -69,18 +69,16 @@ type Playlist struct {
 }
 
 type FlipBoardDisplayOptions struct {
-	Append            bool   `yaml:"append"`
-	Align             string `yaml:"align"`
-	FontSize          int    `yaml:"font-size"`
-	Kerning           int    `yaml:"kerning"`
-	Inverted          bool   `yaml:"inverted"`
-	BWThreshold       int    `yaml:"bwThreshold"`
+	Append      bool   `yaml:"append"`
+	Align       string `yaml:"align"`
+	FontSize    int    `yaml:"font-size"`
+	Kerning     int    `yaml:"kerning"`
+	Inverted    bool   `yaml:"inverted"`
+	BWThreshold int    `yaml:"bwThreshold"`
+	Fill        bool   `yml:"fill"`
 }
 
-var flipBoardDisplayOptions = FlipBoardDisplayOptions{
-	Inverted:    false,
-	BWThreshold: 140, // magic
-}
+var flipBoardDisplayOptions FlipBoardDisplayOptions
 
 func main() {
 	log.Print("Starting")
@@ -178,6 +176,13 @@ func main() {
 		frameIndex := 0
 		frameIndex = frameIndex
 
+		// set the fill value
+		for _, row := range panels {
+			for _, p := range row {
+				p.Clear(flipBoardDisplayOptions.Fill)
+			}
+		}
+
 		// convert virtual virtualBoard to a physical virtualBoard
 		for x := 0; x < len(virtualBoard); x++ {
 			for y := 0; y < len(virtualBoard[x]); y++ {
@@ -206,15 +211,10 @@ func main() {
 		}
 
 		// send our virtual panels to the physical virtualBoard
-		for y, row := range panels {
-			for x, p := range row {
-				y = y
-				x = x
-				//fmt.Println(x, y, p.Address)
+		for _, row := range panels {
+			for _, p := range row {
 				//p.PrintState()
 				p.Send()
-				p.Clear(false)
-				//p.Send()
 			}
 		}
 	}
@@ -490,6 +490,13 @@ func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan
 
 	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
 
+	// reset the options for each message
+	flipBoardDisplayOptions = FlipBoardDisplayOptions{
+		Inverted:    false,
+		BWThreshold: 140, // magic
+		Fill: false,
+	}
+
 	msgOptions := regexp.MustCompile("\\s*--(-*)\\s*").Split(rawMsg, -1)
 	msg := msgOptions[0]
 	if len(msgOptions) > 1 {
@@ -540,17 +547,18 @@ func renderSlackUsernames(msg string, rtm *slack.RTM) string {
 }
 
 func respondWithHelpMsg(rtm *slack.RTM, channelId string) {
-	msg := `DM me something and I'll display that on the board.
+	msg := `DM me something and I'll try to display that on the board.
 
 You can also supply options for the board by doing:
 `
 
 	msg += "```"
 	msg += `
-Your message here.
+Your message or img url goes here.
 --
 inverted:     # (true/false) value to invert an image
 bwThreshold:  # (0-256) set the threshold value for either "on" or "off"
+fill:         # (true/false) true for on, false for off
 `
 
 // we would like to add support for this in the future
@@ -560,6 +568,5 @@ bwThreshold:  # (0-256) set the threshold value for either "on" or "off"
 //font-size: 1           // ??
 
 	msg += "```\n\n"
-	msg += "I can also render image urls, give it a try!"
 	rtm.SendMessage(rtm.NewOutgoingMessage(msg, channelId))
 }
