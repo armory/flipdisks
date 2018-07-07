@@ -69,17 +69,17 @@ type Playlist struct {
 }
 
 type FlipBoardDisplayOptions struct {
-	Append      bool   `yaml:"append"`
-	Align       string `yaml:"align"`
-	FontSize    int    `yaml:"font-size"`
-	Kerning     int    `yaml:"kerning"`
-	Invert      bool   `yaml:"invert"`
-	BWThreshold uint   `yaml:"bwThreshold"`
+	Append            bool   `yaml:"append"`
+	Align             string `yaml:"align"`
+	FontSize          int    `yaml:"font-size"`
+	Kerning           int    `yaml:"kerning"`
+	Inverted          bool   `yaml:"inverted"`
+	BWThreshold       int    `yaml:"bwThreshold"`
 }
 
 var flipBoardDisplayOptions = FlipBoardDisplayOptions{
-	Invert:      false,
-	BWThreshold: 256 / 2,
+	Inverted:    false,
+	BWThreshold: 140, // magic
 }
 
 func main() {
@@ -168,7 +168,7 @@ func main() {
 
 		matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g|gif)").FindStringSubmatch(msg)
 		if len(matchedUrls) > 0 {
-			virtualBoard = downloadImage(playlist, matchedUrls[0], flipBoardDisplayOptions.Invert, flipBoardDisplayOptions.BWThreshold)
+			virtualBoard = downloadImage(playlist, matchedUrls[0], flipBoardDisplayOptions.Inverted, flipBoardDisplayOptions.BWThreshold)
 		} else {
 			virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
 		}
@@ -220,7 +220,7 @@ func main() {
 	}
 }
 
-func downloadImage(playlist *Playlist, imgUrl string, invertImage bool, bwThreshold uint) VirtualBoard {
+func downloadImage(playlist *Playlist, imgUrl string, invertImage bool, bwThreshold int) VirtualBoard {
 	resp, err := http.Get(imgUrl)
 	defer resp.Body.Close()
 	m, _, err := image.Decode(resp.Body)
@@ -540,23 +540,26 @@ func renderSlackUsernames(msg string, rtm *slack.RTM) string {
 }
 
 func respondWithHelpMsg(rtm *slack.RTM, channelId string) {
-	msg := `Send me a DM and I'll display that. 
-You can also change settings by doing:
+	msg := `DM me something and I'll display that on the board.
+
+You can also supply options for the board by doing:
 `
 
 	msg += "```"
 	msg += `
-Your cool message here!
---- 
-append: true/false	 // overwrite or add to the board
+Your message here.
+---
+inverted:     # (true/false) value to invert an image
+bwThreshold:  # (0-256) set the threshold value for either "on" or "off"
 `
 
 // we would like to add support for this in the future
+	//append: true/false	 // overwrite or add to the board
 //align: center center   // horizontal vertical
 //kerning: 0	         // spacing between letters
 //font-size: 1           // ??
 
-
-	msg += "```"
+	msg += "```\n\n"
+	msg += "I can also render image urls, give it a try!"
 	rtm.SendMessage(rtm.NewOutgoingMessage(msg, channelId))
 }
