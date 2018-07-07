@@ -14,6 +14,12 @@
   revision = "c7bbf8cd02bcad012ffc3b0b872660b72fcf33de"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/nfnt/resize"
+  packages = ["."]
+  revision = "83c6a9932646f83e3267f353373d47347b6036b2"
+
+[[projects]]
   name = "github.com/nlopes/slack"
   packages = ["."]
   revision = "8ab4d0b364ef1e9af5d102531da20d5ec902b6c4"
@@ -40,10 +46,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = [
-    "unix",
-    "windows"
-  ]
+  packages = ["unix","windows"]
   revision = "63fc586f45fe72d95d5240a5d5eb95e6503907d3"
 
 [[projects]]
@@ -55,6 +58,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "adb82027cc855c37a95b06668798380dabfa164efb882c40428947b127855be2"
+  inputs-digest = "d31ae8ada80563c916bf7dd6dea8a395e481863174d1e4f9bde3a491399251ef"
   solver-name = "gps-cdcl"
   solver-version = 1
