@@ -169,6 +169,20 @@ func main() {
 			virtualBoard = downloadImage(playlist, matchedUrls[0], flipBoardDisplayOptions.Inverted, flipBoardDisplayOptions.BWThreshold)
 		} else {
 			virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
+
+			// todo, it would be nice to just invert it without through the whole board again
+			// handle inverting for words
+			if flipBoardDisplayOptions.Inverted {
+				for _, row := range virtualBoard {
+					for charIndex, x := range row {
+						if x == 0 {
+							row[charIndex] = 1
+						} else {
+							row[charIndex] = 0
+						}
+					}
+				}
+			}
 		}
 
 		printBoard(virtualBoard)
@@ -205,6 +219,7 @@ func main() {
 				dotXCoord := x % playlist.PanelInfo.PanelWidth
 				dotYCoord := y % playlist.PanelInfo.PanelHeight
 				dotValue := virtualBoard[x][y] == 1
+
 				//log.Printf("Setting panel(%d,%d), adddress %d, dot(%d,%d) with %t", panelXCoord, panelYCoord, p.Address, dotXCoord, dotYCoord, dotValue)
 				p.Set(dotXCoord, dotYCoord, dotValue)
 			}
