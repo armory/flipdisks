@@ -490,7 +490,7 @@ func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan
 
 	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
 
-	msgOptions := regexp.MustCompile("\\s*---\\s*").Split(rawMsg, -1)
+	msgOptions := regexp.MustCompile("\\s*--(-*)\\s*").Split(rawMsg, -1)
 	msg := msgOptions[0]
 	if len(msgOptions) > 1 {
 		setFlipboardOptions(msgOptions[1])
@@ -548,7 +548,7 @@ You can also supply options for the board by doing:
 	msg += "```"
 	msg += `
 Your message here.
----
+--
 inverted:     # (true/false) value to invert an image
 bwThreshold:  # (0-256) set the threshold value for either "on" or "off"
 `
