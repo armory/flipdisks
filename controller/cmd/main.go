@@ -4,7 +4,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"image"
+	"image/color"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -13,6 +19,7 @@ import (
 
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/kevinawoo/flipdots/panel"
+	"github.com/nfnt/resize"
 	"github.com/nlopes/slack"
 	"gopkg.in/yaml.v2"
 )
@@ -62,13 +69,18 @@ type Playlist struct {
 }
 
 type FlipBoardDisplayOptions struct {
-	Append   bool   `yaml:"append"`
-	Align    string `yaml:"align"`
-	FontSize int    `yaml:"font-size"`
-	Kerning  int    `yaml:"kerning"`
+	Append            bool   `yaml:"append"`
+	Align             string `yaml:"align"`
+	FontSize          int    `yaml:"font-size"`
+	Kerning           int    `yaml:"kerning"`
+	Inverted          bool   `yaml:"inverted"`
+	BWThreshold       int    `yaml:"bwThreshold"`
 }
 
-var flipBoardDisplayOptions FlipBoardDisplayOptions
+var flipBoardDisplayOptions = FlipBoardDisplayOptions{
+	Inverted:    false,
+	BWThreshold: 140, // magic
+}
 
 func main() {
 	log.Print("Starting")
@@ -137,6 +149,7 @@ func main() {
 
 	var virtualBoard VirtualBoard
 
+	// handle messages
 	for msg := range messages {
 		if msg == "debug all panels" || msg == "debug panels" {
 			debugPanelAddressByGoingInOrder(panels)
@@ -152,7 +165,13 @@ func main() {
 		virtualBoard = virtualBoard[:0]
 
 		msgCharsAsDots = fontmap.Render(msg)
-		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
+
+		matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g|gif)").FindStringSubmatch(msg)
+		if len(matchedUrls) > 0 {
+			virtualBoard = downloadImage(playlist, matchedUrls[0], flipBoardDisplayOptions.Inverted, flipBoardDisplayOptions.BWThreshold)
+		} else {
+			virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
+		}
 
 		printBoard(virtualBoard)
 
@@ -199,6 +218,45 @@ func main() {
 			}
 		}
 	}
+}
+
+func downloadImage(playlist *Playlist, imgUrl string, invertImage bool, bwThreshold int) VirtualBoard {
+	resp, err := http.Get(imgUrl)
+	defer resp.Body.Close()
+	m, _, err := image.Decode(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	maxWidth := uint(playlist.PanelInfo.PanelHeight * len(playlist.PanelAddressesLayout[0]))
+	maxHeight := uint(playlist.PanelInfo.PanelWidth * len(playlist.PanelAddressesLayout))
+	m = resize.Thumbnail(maxWidth, maxHeight, m, resize.Lanczos3)
+	bounds := m.Bounds()
+	fmt.Printf("%#v \n", bounds)
+	var virtualImgBoard VirtualBoard
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		row := fontmap.Row{}
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			r, g, b, _ := m.At(x, y).RGBA()
+			lum := 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
+			pixel := color.Gray{uint8(lum / 256)}
+
+			var flipdotPixelValue bool
+
+			if pixel.Y < uint8(bwThreshold) {
+				flipdotPixelValue = !invertImage
+			} else {
+				flipdotPixelValue = invertImage
+			}
+
+			if flipdotPixelValue {
+				row = append(row, 1)
+			} else {
+				row = append(row, 0)
+			}
+		}
+		virtualImgBoard = append(virtualImgBoard, row)
+	}
+	return virtualImgBoard
 }
 
 type VirtualBoard []fontmap.Row
@@ -426,6 +484,10 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 
 func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan string) {
 	rawMsg := ev.Msg.Text
+	if ev.SubMessage != nil {
+		rawMsg = ev.SubMessage.Text
+	}
+
 	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
 
 	msgOptions := regexp.MustCompile("\\s*---\\s*").Split(rawMsg, -1)
@@ -443,12 +505,7 @@ func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan
 		return
 	}
 
-	if ev.SubMessage != nil {
-		// someone edited their old message, let's display it
-		flipboardMsgChn <- ev.SubMessage.Text
-	} else {
-		flipboardMsgChn <- msg
-	}
+	flipboardMsgChn <- msg
 }
 
 func cleanupSlackEncodedCharacters(msg string) string {
@@ -483,23 +540,26 @@ func renderSlackUsernames(msg string, rtm *slack.RTM) string {
 }
 
 func respondWithHelpMsg(rtm *slack.RTM, channelId string) {
-	msg := `Send me a DM and I'll display that. 
-You can also change settings by doing:
+	msg := `DM me something and I'll display that on the board.
+
+You can also supply options for the board by doing:
 `
 
 	msg += "```"
 	msg += `
-Your cool message here!
---- 
-append: true/false	 // overwrite or add to the board
+Your message here.
+---
+inverted:     # (true/false) value to invert an image
+bwThreshold:  # (0-256) set the threshold value for either "on" or "off"
 `
 
 // we would like to add support for this in the future
+	//append: true/false	 // overwrite or add to the board
 //align: center center   // horizontal vertical
 //kerning: 0	         // spacing between letters
 //font-size: 1           // ??
 
-
-	msg += "```"
+	msg += "```\n\n"
+	msg += "I can also render image urls, give it a try!"
 	rtm.SendMessage(rtm.NewOutgoingMessage(msg, channelId))
 }
