@@ -520,6 +520,7 @@ func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan
 
 	msg = renderSlackUsernames(msg, rtm)
 	msg = cleanupSlackEncodedCharacters(msg)
+	msg = renderSlackEmojis(msg, rtm)
 
 	fmt.Printf("Rendering message: %+v\n", msg)
 	if msg == "help" {
@@ -561,6 +562,7 @@ func renderSlackUsernames(msg string, rtm *slack.RTM) string {
 	return msg
 }
 
+
 func respondWithHelpMsg(rtm *slack.RTM, channelId string) {
 	msg := `DM me something and I'll try to display that on the board.
 
@@ -585,3 +587,44 @@ fill:         # (true/false) fill the board with:  true for on, false for off
 	msg += "```\n\n"
 	rtm.SendMessage(rtm.NewOutgoingMessage(msg, channelId))
 }
+
+func renderSlackEmojis(msg string, rtm *slack.RTM) string {
+	slackEmojiLookup, err := rtm.GetEmoji()
+	if err != nil {
+		return msg
+	}
+
+	var githubEmojiLookup map[string]string
+	githubResp, err := http.Get("https://api.github.com/emojis")
+	if err != nil {
+		return msg
+	}
+
+	githubDecoder := json.NewDecoder(githubResp.Body)
+	err = githubDecoder.Decode(&githubEmojiLookup)
+	if err != nil {
+		return msg
+	}
+
+	emojis := regexp.MustCompile(":\\w+:").FindAllString(msg, -1)
+	for _, slackFmtMsgEmoji := range emojis {
+		// in the message we'll receive something like ":smile:", this will actually return 😊
+		emojiName := strings.Replace(strings.Replace(slackFmtMsgEmoji, ":", "", 1), ":", "", 1)
+
+		if emojiName != "" {
+			emojiImgUrl := slackEmojiLookup[emojiName]
+			if emojiImgUrl == "" {
+				emojiImgUrl = githubEmojiLookup[emojiName]
+			}
+
+			if emojiImgUrl == "" {
+				continue
+			}
+
+			msg = strings.Replace(msg, ":"+emojiName+":", emojiImgUrl, -1)
+		}
+	}
+
+	return msg
+}
+
