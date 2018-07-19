@@ -14,7 +14,7 @@ NAME="flipdisk-controller"
 PATH="/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin"
 APPDIR="/home/pi/Desktop"
 APPBIN="main"
-APPARGS="-p /dev/ttyUSB0 -slack-token $(cat slack-token.txt)"
+APPARGS="-p /dev/ttyUSB0 -slack-token $(cat slack-token.txt) -github-token $(cat gitub-token.txt)"
 USER="flipdisk-controller"
 GROUP="flipdisk-controller"
 
