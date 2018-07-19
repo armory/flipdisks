@@ -22,6 +22,9 @@ import (
 	"github.com/nfnt/resize"
 	"github.com/nlopes/slack"
 	"gopkg.in/yaml.v2"
+	"golang.org/x/oauth2"
+	"github.com/google/go-github/github"
+	"context"
 )
 
 type MetadataType struct {
@@ -80,6 +83,8 @@ type FlipBoardDisplayOptions struct {
 
 var flipBoardDisplayOptions FlipBoardDisplayOptions
 
+var githubToken *string
+
 func main() {
 	log.Print("Starting")
 
@@ -119,6 +124,7 @@ func main() {
 	baud := flag.Int("b", 9600, "baud rate of port")
 
 	slackToken := flag.String("slack-token", "", "Go get a slack token")
+	githubToken = flag.String("github-token", "", "Go get a github token")
 	flag.Parse()
 
 	width = width
@@ -588,22 +594,26 @@ fill:         # (true/false) fill the board with:  true for on, false for off
 	rtm.SendMessage(rtm.NewOutgoingMessage(msg, channelId))
 }
 
+var slackEmojiLookup map[string]string
+var githubEmojiLookup map[string]string
+
 func renderSlackEmojis(msg string, rtm *slack.RTM) string {
-	slackEmojiLookup, err := rtm.GetEmoji()
-	if err != nil {
-		return msg
+	var err error
+
+	if slackEmojiLookup == nil {
+		slackEmojiLookup, err = rtm.GetEmoji()
+		if err != nil {
+			log.Panicln("Could not get emojis from Slack", err)
+			return msg
+		}
 	}
 
-	var githubEmojiLookup map[string]string
-	githubResp, err := http.Get("https://api.github.com/emojis")
-	if err != nil {
-		return msg
-	}
-
-	githubDecoder := json.NewDecoder(githubResp.Body)
-	err = githubDecoder.Decode(&githubEmojiLookup)
-	if err != nil {
-		return msg
+	if githubEmojiLookup == nil {
+		githubEmojiLookup, err = getGithubEmojis()
+		if err != nil {
+			log.Panicln("Could not get emojis from Github", err)
+			return msg
+		}
 	}
 
 	emojis := regexp.MustCompile(":\\w+:").FindAllString(msg, -1)
@@ -613,6 +623,13 @@ func renderSlackEmojis(msg string, rtm *slack.RTM) string {
 
 		if emojiName != "" {
 			emojiImgUrl := slackEmojiLookup[emojiName]
+
+			// follow the aliases for emojis
+			for strings.Contains(emojiImgUrl, "alias:") {
+				nextEmojiName := strings.Replace(emojiImgUrl, "alias:", "", -1)
+				emojiImgUrl = slackEmojiLookup[nextEmojiName]
+			}
+
 			if emojiImgUrl == "" {
 				emojiImgUrl = githubEmojiLookup[emojiName]
 			}
@@ -628,3 +645,20 @@ func renderSlackEmojis(msg string, rtm *slack.RTM) string {
 	return msg
 }
 
+func getGithubEmojis() (map[string]string, error) {
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: *githubToken},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+
+	client := github.NewClient(tc)
+
+	var err error
+	githubEmojiLookup, _, err= client.ListEmojis(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+	return githubEmojiLookup, nil
+}
