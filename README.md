@@ -30,3 +30,11 @@ ssh-copy-id pi@192.168.86.26  # add your key for easy login
 ./bin/build-controller.sh
 ./bin/deploy-controller.sh
 ```
+
+
+# Tips and Tricks
+### flipdisk-controller deamon
+To check on the status on the service, you can do
+```bash
+watch -n 1 systemctl status flipdisk-controller.service
+```
