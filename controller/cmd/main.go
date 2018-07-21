@@ -74,6 +74,8 @@ type Playlist struct {
 type FlipBoardDisplayOptions struct {
 	Append      bool   `yaml:"append"`
 	Align       string `yaml:"align"`
+	xAlign      string
+	yAlign      string
 	FontSize    int    `yaml:"font-size"`
 	Kerning     int    `yaml:"kerning"`
 	Inverted    bool   `yaml:"inverted"`
@@ -203,31 +205,44 @@ func main() {
 			}
 		}
 
+		// the library fliped height and width by accident, we'll work around it
+		panelWidth := playlist.PanelInfo.PanelHeight
+		panelHeight := playlist.PanelInfo.PanelWidth
+		// god damn it, its really confusing
+
 		// convert virtual virtualBoard to a physical virtualBoard
-		for x := 0; x < len(virtualBoard); x++ {
-			for y := 0; y < len(virtualBoard[x]); y++ {
-				panelXCoord := x / playlist.PanelInfo.PanelWidth
-				panelYCoord := y / playlist.PanelInfo.PanelHeight
+		boardWidth := panelWidth * len(playlist.PanelAddressesLayout[0])
+		boardHeight := panelHeight * len(playlist.PanelAddressesLayout)
+		xOffSet, yOffSet := findOffSets(virtualBoard, boardWidth, boardHeight)
 
-				if panelXCoord >= len(playlist.PanelAddressesLayout) {
-					log.Printf("Warning: Frame %d row %d, exceeds specified HEIGHT %d, dropping the rest of it.", frameIndex, y, playlist.PanelInfo.PanelWidth)
-					continue
-				}
-
-				if panelYCoord >= len(playlist.PanelAddressesLayout[panelXCoord]) {
-					log.Printf("Warning: Frame %d cell(%d,%d) exceeds specified WIDTH %d, dropping the rest of it.", frameIndex, x, y, playlist.PanelInfo.PanelWidth)
-					continue
-				}
-
-				p := panels[panelXCoord][panelYCoord]
-
+		for y := 0; y < len(virtualBoard); y++ {
+			for x := 0; x < len(virtualBoard[y]); x++ {
 				// which dot should we set?
-				dotXCoord := x % playlist.PanelInfo.PanelWidth
-				dotYCoord := y % playlist.PanelInfo.PanelHeight
-				dotValue := virtualBoard[x][y] == 1
+				panelXCoord := (x + xOffSet) / panelWidth
+				panelYCoord := (y + yOffSet) / panelHeight
+				dotXCoord := (x+xOffSet) % panelWidth
+				dotYCoord := (y+yOffSet) % panelHeight
 
-				//log.Printf("Setting panel(%d,%d), adddress %d, dot(%d,%d) with %t", panelXCoord, panelYCoord, p.Address, dotXCoord, dotYCoord, dotValue)
-				p.Set(dotXCoord, dotYCoord, dotValue)
+				if dotXCoord < 0 || dotYCoord < 0 || panelXCoord < 0 || panelYCoord < 0 {
+					continue
+				}
+
+				if panelYCoord >= len(playlist.PanelAddressesLayout) {
+					log.Printf("Warning: Frame %d row %d, exceeds specified HEIGHT %d, dropping the rest of it.", frameIndex, x, panelHeight)
+					continue
+				}
+
+				if panelXCoord >= len(playlist.PanelAddressesLayout[panelYCoord]) {
+					log.Printf("Warning: Frame %d cell(%d,%d) exceeds specified WIDTH %d, dropping the rest of it.", frameIndex, y, x, panelWidth)
+					continue
+				}
+
+				//log.Printf("Setting panel(%d,%d), adddress %d, dot(%d,%d) with %t", panelYCoord, panelXCoord, p.Address, dotYCoord, dotXCoord, dotValue)
+
+				// there's a bug in this library, where x and y are flipped. we need to handle this later
+				p := panels[panelYCoord][panelXCoord]
+				dotValue := virtualBoard[y][x] == 1
+				p.Set(dotYCoord, dotXCoord, dotValue)
 			}
 		}
 
@@ -547,6 +562,13 @@ func cleanupSlackEncodedCharacters(msg string) string {
 func setFlipboardOptions(rawOptions string) {
 	err := yaml.Unmarshal([]byte(rawOptions), &flipBoardDisplayOptions)
 	err = err
+
+	alignmentOptions := regexp.MustCompile("( |,)+").Split(flipBoardDisplayOptions.Align, -1)
+	flipBoardDisplayOptions.xAlign = alignmentOptions[0]
+	if len(alignmentOptions) > 1 {
+		flipBoardDisplayOptions.yAlign = alignmentOptions[1]
+	}
+
 	fmt.Printf("%#v \n", flipBoardDisplayOptions)
 }
 
@@ -577,8 +599,10 @@ You can also supply options for the board by doing:
 
 	msg += "```"
 	msg += `
-Your message or img url goes here.
+Your message, 🚀, or img_url goes here.
 --
+align:        # 10 5           // set position of media; horizontally or vertically
+align:        # center center  // (left,center,right)  (top,center,bottom)
 inverted:     # (true/false) invert the text or image
 bwThreshold:  # (0-256) set the threshold value for either "on" or "off"
 fill:         # (true/false) fill the board with:  true for on, false for off
@@ -586,7 +610,6 @@ fill:         # (true/false) fill the board with:  true for on, false for off
 
 // we would like to add support for this in the future
 	//append: true/false	 // overwrite or add to the board
-//align: center center   // horizontal vertical
 //kerning: 0	         // spacing between letters
 //font-size: 1           // ??
 
@@ -661,4 +684,35 @@ func getGithubEmojis() (map[string]string, error) {
 		return nil, err
 	}
 	return githubEmojiLookup, nil
+}
+
+func findOffSets(virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, int) {
+	var xOffSet int
+
+	switch flipBoardDisplayOptions.xAlign {
+	case "left":
+		xOffSet = 0
+	case "center":
+		xOffSet = (boardWidth - len(virtualBoard[0])) / 2
+		fmt.Println(xOffSet)
+	case "right":
+		xOffSet = boardWidth - len(virtualBoard[0])
+	default:
+		xOffSet, _ = strconv.Atoi(flipBoardDisplayOptions.xAlign)
+	}
+
+	var yOffSet int
+
+	switch flipBoardDisplayOptions.yAlign {
+	case "top":
+		// we don't do anything
+	case "center":
+		yOffSet = (boardHeight - len(virtualBoard)) / 2
+	case "bottom":
+		yOffSet = boardHeight - len(virtualBoard)
+	default:
+		yOffSet, _ = strconv.Atoi(flipBoardDisplayOptions.yAlign)
+	}
+
+	return xOffSet, yOffSet
 }
