@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -19,11 +18,10 @@ import (
 	"time"
 
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
-	"github.com/google/go-github/github"
+	"github.com/armory/flipdisks/controller/pkg/github"
 	"github.com/kevinawoo/flipdots/panel"
 	"github.com/nfnt/resize"
 	"github.com/nlopes/slack"
-	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v2"
 )
 
@@ -129,6 +127,16 @@ func main() {
 	githubToken = flag.String("github-token", "", "Go get a github token")
 	flag.Parse()
 
+	g, err := github.New(github.Token(*githubToken))
+	if err != nil {
+		log.Panic("Could not create githubClient")
+	}
+	githubEmojiLookup, err = g.GetEmojis()
+	if err != nil {
+		log.Panicln("Could not get emojis from Github", err)
+	}
+
+
 	width = width
 	height = height
 	port = port
@@ -212,7 +220,7 @@ func main() {
 
 			height := len(virtualBoard)
 			width := len(virtualBoard[0])
-			fill = float32(sum) / float32(2 * (width + height)) >= .7
+			fill = float32(sum)/float32(2*(width+height)) >= .7
 			fmt.Println("setting autofill to be: ", fill)
 		}
 
@@ -637,7 +645,7 @@ fill:         # ("", true/false) leave blank for autofill, or select your own fi
 }
 
 var slackEmojiLookup map[string]string
-var githubEmojiLookup map[string]string
+var githubEmojiLookup github.EmojiLookup
 
 func renderSlackEmojis(msg string, rtm *slack.RTM) string {
 	var err error
@@ -646,14 +654,6 @@ func renderSlackEmojis(msg string, rtm *slack.RTM) string {
 		slackEmojiLookup, err = rtm.GetEmoji()
 		if err != nil {
 			log.Panicln("Could not get emojis from Slack", err)
-			return msg
-		}
-	}
-
-	if githubEmojiLookup == nil {
-		githubEmojiLookup, err = getGithubEmojis()
-		if err != nil {
-			log.Panicln("Could not get emojis from Github", err)
 			return msg
 		}
 	}
@@ -687,23 +687,7 @@ func renderSlackEmojis(msg string, rtm *slack.RTM) string {
 	return msg
 }
 
-func getGithubEmojis() (map[string]string, error) {
-	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: *githubToken},
-	)
-	tc := oauth2.NewClient(ctx, ts)
 
-	client := github.NewClient(tc)
-
-	var err error
-	githubEmojiLookup, _, err= client.ListEmojis(ctx)
-
-	if err != nil {
-		return nil, err
-	}
-	return githubEmojiLookup, nil
-}
 
 func findOffSets(virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, int) {
 	var xOffSet int
