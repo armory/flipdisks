@@ -155,19 +155,6 @@ func main() {
 
 	var virtualBoard VirtualBoard
 
-	go func() {
-		msg := `:rocket:
----
-align: -10, center`
-		msgOptions := regexp.MustCompile("\\s*--(-*)\\s*").Split(msg, -1)
-		msg = msgOptions[0]
-		if len(msgOptions) > 1 {
-			setFlipboardOptions(msgOptions[1])
-		}
-
-		messages <- msg
-	}()
-
 	// handle messages
 	for msg := range messages {
 		if msg == "debug all panels" || msg == "debug panels" {
