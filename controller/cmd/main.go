@@ -78,7 +78,7 @@ type FlipBoardDisplayOptions struct {
 	Kerning     int    `yaml:"kerning"`
 	Inverted    bool   `yaml:"inverted"`
 	BWThreshold int    `yaml:"bwThreshold"`
-	Fill        bool   `yml:"fill"`
+	Fill        string `yml:"fill"`
 }
 
 var flipBoardDisplayOptions FlipBoardDisplayOptions
@@ -201,17 +201,37 @@ func main() {
 			}
 		}
 
-		printBoard(virtualBoard)
-
 		frameIndex := 0
 		frameIndex = frameIndex
+
+		// if autofill, try to determine the average around the borders and use that
+		fill := flipBoardDisplayOptions.Fill == "true"
+		if flipBoardDisplayOptions.Fill == "" {
+			var sum int
+			for _, cell := range virtualBoard {
+				sum += cell[0]           // left y going down
+				sum += cell[len(cell)-1] // right y going down
+			}
+
+			for i := range virtualBoard[0] {
+				sum += virtualBoard[0][i]                   // top x going right
+				sum += virtualBoard[len(virtualBoard)-1][i] // bottom x going right
+			}
+
+			height := len(virtualBoard)
+			width := len(virtualBoard[0])
+			fill = float32(sum)/float32(2*(width+height)) >= .7
+			fmt.Println("setting autofill to be: ", fill)
+		}
 
 		// set the fill value
 		for _, row := range panels {
 			for _, p := range row {
-				p.Clear(flipBoardDisplayOptions.Fill)
+				p.Clear(fill)
 			}
 		}
+
+		printBoard(virtualBoard)
 
 		// the library fliped height and width by accident, we'll work around it
 		panelWidth := playlist.PanelInfo.PanelHeight
@@ -538,7 +558,7 @@ func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan
 	flipBoardDisplayOptions = FlipBoardDisplayOptions{
 		Inverted:    false,
 		BWThreshold: 140, // magic
-		Fill: false,
+		Fill:        "",
 	}
 
 	msgOptions := regexp.MustCompile("\\s*--(-*)\\s*").Split(rawMsg, -1)
@@ -613,11 +633,10 @@ align:        # 10 5           // set position of media; horizontally or vertica
 align:        # center center  // (left,center,right)  (top,center,bottom)
 inverted:     # (true/false) invert the text or image
 bwThreshold:  # (0-256) set the threshold value for either "on" or "off"
-fill:         # (true/false) fill the board with:  true for on, false for off
+fill:         # ("", true/false) leave blank for autofill, or select your own fill
 `
 
 // we would like to add support for this in the future
-	//append: true/false	 // overwrite or add to the board
 //kerning: 0	         // spacing between letters
 //font-size: 1           // ??
 
