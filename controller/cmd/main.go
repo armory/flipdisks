@@ -208,9 +208,9 @@ func main() {
 		fill := flipBoardDisplayOptions.Fill == "true"
 		if flipBoardDisplayOptions.Fill == "" {
 			var sum int
-			for _, cell := range virtualBoard {
-				sum += cell[0]           // left y going down
-				sum += cell[len(cell)-1] // right y going down
+			for _, row := range virtualBoard {
+				sum += row[0]           // left y going down
+				sum += row[len(row)-1] // right y going down
 			}
 
 			for i := range virtualBoard[0] {
