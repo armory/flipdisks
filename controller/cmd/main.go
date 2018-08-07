@@ -559,13 +559,19 @@ func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan
 		Inverted:    false,
 		BWThreshold: 140, // magic
 		Fill:        "",
+		Align: "center center",
 	}
 
-	msgOptions := regexp.MustCompile("\\s*--(-*)\\s*").Split(rawMsg, -1)
-	msg := msgOptions[0]
-	if len(msgOptions) > 1 {
-		setFlipboardOptions(msgOptions[1])
+	msgOptionSplit := regexp.MustCompile("\\s*--(-*)\\s*").Split(rawMsg, -1)
+	msg := msgOptionSplit[0]
+	if len(msgOptionSplit) > 1 {
+		rawOptions := msgOptionSplit[1]
+		flipBoardDisplayOptions = unmarshleOptions(rawOptions)
 	}
+
+	flipBoardDisplayOptions.xAlign, flipBoardDisplayOptions.yAlign = getAlignOptions(flipBoardDisplayOptions.Align)
+
+	fmt.Printf("%#v \n", flipBoardDisplayOptions)
 
 	msg = renderSlackUsernames(msg, rtm)
 	msg = cleanupSlackEncodedCharacters(msg)
@@ -587,17 +593,22 @@ func cleanupSlackEncodedCharacters(msg string) string {
 	return msg
 }
 
-func setFlipboardOptions(rawOptions string) {
-	err := yaml.Unmarshal([]byte(rawOptions), &flipBoardDisplayOptions)
-	err = err
+func unmarshleOptions(rawOptions string) FlipBoardDisplayOptions {
+	var flipBoardDisplayOptions FlipBoardDisplayOptions
+	yaml.Unmarshal([]byte(rawOptions), &flipBoardDisplayOptions)
 
-	alignmentOptions := regexp.MustCompile("( |,)+").Split(flipBoardDisplayOptions.Align, -1)
-	flipBoardDisplayOptions.xAlign = alignmentOptions[0]
+	return flipBoardDisplayOptions
+}
+
+func getAlignOptions(align string) (string, string) {
+	alignmentOptions := regexp.MustCompile("( |,)+").Split(align, -1)
+	var xAlign, yAlign string
+	xAlign = alignmentOptions[0]
 	if len(alignmentOptions) > 1 {
-		flipBoardDisplayOptions.yAlign = alignmentOptions[1]
+		yAlign = alignmentOptions[1]
 	}
 
-	fmt.Printf("%#v \n", flipBoardDisplayOptions)
+	return xAlign, yAlign
 }
 
 func renderSlackUsernames(msg string, rtm *slack.RTM) string {
