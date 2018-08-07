@@ -220,7 +220,7 @@ func main() {
 
 			height := len(virtualBoard)
 			width := len(virtualBoard[0])
-			fill = float32(sum)/float32(2*(width+height)) >= .7
+			fill = float32(sum)/float32(2*(width+height)) >= .5
 			fmt.Println("setting autofill to be: ", fill)
 		}
 
