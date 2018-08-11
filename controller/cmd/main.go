@@ -70,6 +70,8 @@ type Playlist struct {
 }
 
 type FlipBoardDisplayOptions struct {
+	Message     string `yaml:"message"`
+	DisplayTime int    `yaml:"displayTime"`
 	Append      bool   `yaml:"append"`
 	Align       string `yaml:"align"`
 	xAlign      string
@@ -81,12 +83,10 @@ type FlipBoardDisplayOptions struct {
 	Fill        string `yml:"fill"`
 }
 
-var flipBoardDisplayOptions FlipBoardDisplayOptions
-
 var githubToken *string
 
 func main() {
-	log.Print("Starting")
+	log.Print("Starting flipdisk controller")
 
 	playlist := &Playlist{
 		Name:     "demo",
@@ -139,23 +139,15 @@ func main() {
 	var panels [][]*panel.Panel
 	panels = createPanels(playlist, panels, port, baud)
 
-	messages := make(chan string)
-	flipBoardDisplayOptions.Append = false
-
-	msg := `
-Hello
-`
-
-	DoWOrkFigureOutAName(msg, panels, playlist)
+	msgsChan := make(chan FlipBoardDisplayOptions)
 
 	_ = slackToken
-	_ = messages
-	//go startSlackListener(*slackToken, messages)
-	//
-	//// handle messages
-	//for msg := range messages {
-	//	DoWOrkFigureOutAName(msg, panels, playlist)
-	//}
+	_ = msgsChan
+	go startSlackListener(*slackToken, msgsChan)
+
+	for msg := range msgsChan {
+		DoWOrkFigureOutAName(msg, panels, playlist)
+	}
 }
 
 func createPanels(playlist *Playlist, panels [][]*panel.Panel, port *string, baud *int) [][]*panel.Panel {
@@ -172,30 +164,30 @@ func createPanels(playlist *Playlist, panels [][]*panel.Panel, port *string, bau
 	return panels
 }
 
-func DoWOrkFigureOutAName(msg string, panels [][]*panel.Panel, playlist *Playlist) {
+func DoWOrkFigureOutAName(msg FlipBoardDisplayOptions, panels [][]*panel.Panel, playlist *Playlist) {
 	var msgCharsAsDots []fontmap.Letter
 	var virtualBoard VirtualBoard
 
-	if msg == "debug all panels" || msg == "debug panels" {
+	if msg.Message == "debug all panels" || msg.Message == "debug panels" {
 		debugPanelAddressByGoingInOrder(panels)
 	}
-	if strings.Contains(msg, "debug panel") {
-		panelAddress, _ := strconv.Atoi(strings.Replace(msg, "debug panel ", "", -1))
+	if strings.Contains(msg.Message, "debug panel") {
+		panelAddress, _ := strconv.Atoi(strings.Replace(msg.Message, "debug panel ", "", -1))
 		debugSinglePanel(panels, panelAddress)
 	}
-	// clear the message and the virtualBoard, ready for the next message
+	// clear the Message and the virtualBoard, ready for the next Message
 	msgCharsAsDots = msgCharsAsDots[:0]
 	virtualBoard = virtualBoard[:0]
-	msgCharsAsDots = fontmap.Render(msg)
-	matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g|gif)").FindStringSubmatch(msg)
+	msgCharsAsDots = fontmap.Render(msg.Message)
+	matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g|gif)").FindStringSubmatch(msg.Message)
 	if len(matchedUrls) > 0 {
-		virtualBoard = downloadImage(playlist, matchedUrls[0], flipBoardDisplayOptions.Inverted, flipBoardDisplayOptions.BWThreshold)
+		virtualBoard = downloadImage(playlist, matchedUrls[0], msg.Inverted, msg.BWThreshold)
 	} else {
-		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
+		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg.Message)
 
 		// todo, it would be nice to just invert it without through the whole board again
 		// handle inverting for words
-		if flipBoardDisplayOptions.Inverted {
+		if msg.Inverted {
 			for _, row := range virtualBoard {
 				for charIndex, x := range row {
 					if x == 0 {
@@ -210,8 +202,8 @@ func DoWOrkFigureOutAName(msg string, panels [][]*panel.Panel, playlist *Playlis
 	frameIndex := 0
 	frameIndex = frameIndex
 	// if autofill, try to determine the average around the borders and use that
-	fill := flipBoardDisplayOptions.Fill == "true"
-	if flipBoardDisplayOptions.Fill == "" {
+	fill := msg.Fill == "true"
+	if msg.Fill == "" {
 		var sum int
 
 		// Go across the top to add up all the values
@@ -240,7 +232,7 @@ func DoWOrkFigureOutAName(msg string, panels [][]*panel.Panel, playlist *Playlis
 		height := len(virtualBoard)
 		width := len(virtualBoard[0])
 		fill = float32(sum)/float32(2*(width+height)) >= .5 // magic number
-		fmt.Println("setting autofill to be: ", fill)
+		//fmt.Println("setting autofill to be: ", fill)
 	}
 	// set the fill value
 	for _, row := range panels {
@@ -256,7 +248,7 @@ func DoWOrkFigureOutAName(msg string, panels [][]*panel.Panel, playlist *Playlis
 	// convert virtual virtualBoard to a physical virtualBoard
 	boardWidth := panelWidth * len(playlist.PanelAddressesLayout[0])
 	boardHeight := panelHeight * len(playlist.PanelAddressesLayout)
-	xOffSet, yOffSet := findOffSets(virtualBoard, boardWidth, boardHeight)
+	xOffSet, yOffSet := findOffSets(msg, virtualBoard, boardWidth, boardHeight)
 	for y := 0; y < len(virtualBoard); y++ {
 		for x := 0; x < len(virtualBoard[y]); x++ {
 			// which dot should we set?
@@ -534,7 +526,7 @@ func startVideoPlayer(playlist *Playlist, panels [][]*panel.Panel) {
 	}
 }
 
-func startSlackListener(slackToken string, flipboardMsgChn chan string) {
+func startSlackListener(slackToken string, flipboardMsgChn chan FlipBoardDisplayOptions) {
 	api := slack.New(slackToken)
 	logger := log.New(os.Stdout, "slack-bot: ", log.Lshortfile|log.LstdFlags)
 	slack.SetLogger(logger)
@@ -544,7 +536,6 @@ func startSlackListener(slackToken string, flipboardMsgChn chan string) {
 	go rtm.ManageConnection()
 
 	for msg := range rtm.IncomingEvents {
-		//fmt.Print("Event Received: ")
 		switch ev := msg.Data.(type) {
 		case *slack.MessageEvent:
 			handleSlackMsg(ev, rtm, flipboardMsgChn)
@@ -554,48 +545,70 @@ func startSlackListener(slackToken string, flipboardMsgChn chan string) {
 			return
 
 		default:
+			fmt.Println("Event Received: ")
+			fmt.Printf("%#v\n", msg)
 		}
 	}
 }
 
-func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan string) {
-	rawMsg := ev.Msg.Text
-	if ev.SubMessage != nil {
-		rawMsg = ev.SubMessage.Text
+func handleSlackMsg(slackEvent *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan FlipBoardDisplayOptions) {
+	rawMsg := slackEvent.Msg.Text
+	if slackEvent.SubMessage != nil {
+		rawMsg = slackEvent.SubMessage.Text
 	}
 
 	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
 
-	// reset the options for each message
-	flipBoardDisplayOptions = FlipBoardDisplayOptions{
-		Inverted:    false,
-		BWThreshold: 140, // magic
-		Fill:        "",
-		Align: "center center",
+	messages := splitMessageAndOptions(rawMsg)
+
+	fmt.Printf("%#v \n", messages)
+
+	for _, msg := range messages {
+		msg.Message = renderSlackUsernames(msg.Message, rtm)
+		msg.Message = cleanupSlackEncodedCharacters(msg.Message)
+		msg.Message = renderSlackEmojis(msg.Message, rtm)
+		if strings.ToLower(msg.Message) == "help" {
+			respondWithHelpMsg(rtm, slackEvent.Msg.Channel)
+			return
+		}
 	}
 
-	msgOptionSplit := regexp.MustCompile("\\s*--(-*)\\s*").Split(rawMsg, -1)
-	msg := msgOptionSplit[0]
-	if len(msgOptionSplit) > 1 {
-		rawOptions := msgOptionSplit[1]
-		flipBoardDisplayOptions = unmarshleOptions(rawOptions)
+	for _, msg := range messages {
+		fmt.Printf("Rendering Message: %+v\n", msg.Message)
+
+		flipboardMsgChn <- msg
+		time.Sleep(time.Millisecond * time.Duration(msg.DisplayTime))
+	}
+}
+
+func splitMessageAndOptions(rawMsg string) ([]FlipBoardDisplayOptions) {
+	var messages []FlipBoardDisplayOptions
+
+	playlistRegex := regexp.MustCompile(`^---\n`)
+	isPlaylist := playlistRegex.Match([]byte(rawMsg))
+	if isPlaylist == false {
+		msgAndOptions := regexp.MustCompile(`\s*--(-+)\s*`).Split(rawMsg, -1)
+		var m FlipBoardDisplayOptions
+
+		rawOptions := ""
+		if len(msgAndOptions) > 1 { // is there options?
+			rawOptions = msgAndOptions[1]
+		}
+
+		m = unmarshleOptions(rawOptions)
+		m.Message = msgAndOptions[0]
+
+		messages = append(messages, m)
+	} else {
+		rawPlaylist := playlistRegex.Split(rawMsg, -1)[1]
+		err := yaml.Unmarshal([]byte(rawPlaylist), &messages)
+		if err != nil {
+			fmt.Println("Could not unmarshal the yaml")
+			fmt.Println(err)
+		}
 	}
 
-	flipBoardDisplayOptions.xAlign, flipBoardDisplayOptions.yAlign = getAlignOptions(flipBoardDisplayOptions.Align)
-
-	fmt.Printf("%#v \n", flipBoardDisplayOptions)
-
-	msg = renderSlackUsernames(msg, rtm)
-	msg = cleanupSlackEncodedCharacters(msg)
-	msg = renderSlackEmojis(msg, rtm)
-
-	fmt.Printf("Rendering message: %+v\n", msg)
-	if msg == "help" {
-		respondWithHelpMsg(rtm, ev.Msg.Channel)
-		return
-	}
-
-	flipboardMsgChn <- msg
+	return messages
 }
 
 func cleanupSlackEncodedCharacters(msg string) string {
@@ -606,10 +619,18 @@ func cleanupSlackEncodedCharacters(msg string) string {
 }
 
 func unmarshleOptions(rawOptions string) FlipBoardDisplayOptions {
-	var flipBoardDisplayOptions FlipBoardDisplayOptions
-	yaml.Unmarshal([]byte(rawOptions), &flipBoardDisplayOptions)
+	// reset the options for each Message
+	opts := FlipBoardDisplayOptions{
+		Inverted:    false,
+		BWThreshold: 140, // magic
+		Fill:        "",
+		Align:       "center center",
+	}
 
-	return flipBoardDisplayOptions
+	yaml.Unmarshal([]byte(rawOptions), &opts)
+
+	opts.xAlign, opts.yAlign = getAlignOptions(opts.Align)
+	return opts
 }
 
 func getAlignOptions(align string) (string, string) {
@@ -626,7 +647,7 @@ func getAlignOptions(align string) (string, string) {
 func renderSlackUsernames(msg string, rtm *slack.RTM) string {
 	userIds := regexp.MustCompile("<@\\w+>").FindAllString(msg, -1)
 	for _, slackFmtMsgUserId := range userIds {
-		// in the message we'll receive something like "<@U123123>", the id is actually "U123123"
+		// in the Message we'll receive something like "<@U123123>", the id is actually "U123123"
 		userId := strings.Replace(strings.Replace(slackFmtMsgUserId, "<@", "", 1), ">", "", 1)
 
 		user, err := rtm.GetUserInfo(userId)
@@ -650,8 +671,8 @@ You can also supply options for the board by doing:
 
 	msg += "```"
 	msg += `
-Your message, 🚀, or img_url goes here.
---
+Your Message, 🚀, or img_url goes here.
+---
 align:        # 10 5           // set position of media; horizontally or vertically
 align:        # center center  // (left,center,right)  (top,center,bottom)
 inverted:     # (true/false) invert the text or image
@@ -683,7 +704,7 @@ func renderSlackEmojis(msg string, rtm *slack.RTM) string {
 
 	emojis := regexp.MustCompile(":\\w+:").FindAllString(msg, -1)
 	for _, slackFmtMsgEmoji := range emojis {
-		// in the message we'll receive something like ":smile:", this will actually return 😊
+		// in the Message we'll receive something like ":smile:", this will actually return 😊
 		emojiName := strings.Replace(strings.Replace(slackFmtMsgEmoji, ":", "", 1), ":", "", 1)
 
 		if emojiName != "" {
@@ -710,12 +731,10 @@ func renderSlackEmojis(msg string, rtm *slack.RTM) string {
 	return msg
 }
 
-
-
-func findOffSets(virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, int) {
+func findOffSets(options FlipBoardDisplayOptions, virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, int) {
 	var xOffSet int
 
-	switch flipBoardDisplayOptions.xAlign {
+	switch options.xAlign {
 	case "left":
 		xOffSet = 0
 	case "center":
@@ -724,12 +743,12 @@ func findOffSets(virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, i
 	case "right":
 		xOffSet = boardWidth - len(virtualBoard[0])
 	default:
-		xOffSet, _ = strconv.Atoi(flipBoardDisplayOptions.xAlign)
+		xOffSet, _ = strconv.Atoi(options.xAlign)
 	}
 
 	var yOffSet int
 
-	switch flipBoardDisplayOptions.yAlign {
+	switch options.yAlign {
 	case "top":
 		// we don't do anything
 	case "center":
@@ -737,7 +756,7 @@ func findOffSets(virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, i
 	case "bottom":
 		yOffSet = boardHeight - len(virtualBoard)
 	default:
-		yOffSet, _ = strconv.Atoi(flipBoardDisplayOptions.yAlign)
+		yOffSet, _ = strconv.Atoi(options.yAlign)
 	}
 
 	return xOffSet, yOffSet

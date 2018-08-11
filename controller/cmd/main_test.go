@@ -16,7 +16,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 		expect VirtualBoard
 	}{
 		{
-			testDescription:    "It should print out a simple message",
+			testDescription:    "It should print out a simple Message",
 			panelWidth:         7,
 			numberOfPanelsWide: 2,
 			message:            "ab",
@@ -33,7 +33,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 		},
 
 		{
-			testDescription:    "It should print out a simple message with new line",
+			testDescription:    "It should print out a simple Message with new line",
 			panelWidth:         7,
 			numberOfPanelsWide: 2,
 			message:            "a\nb",
