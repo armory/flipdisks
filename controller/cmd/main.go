@@ -159,127 +159,120 @@ func main() {
 	messages := make(chan string)
 	flipBoardDisplayOptions.Append = false
 	go startSlackListener(*slackToken, playlist, panels, messages)
-	var msgCharsAsDots []fontmap.Letter
 
-	var virtualBoard VirtualBoard
 
 	// handle messages
 	for msg := range messages {
-		if msg == "debug all panels" || msg == "debug panels" {
-			debugPanelAddressByGoingInOrder(panels)
-		}
+		DoWOrkFigureOutAName(msg, panels, playlist)
+	}
+}
 
-		if strings.Contains(msg, "debug panel") {
-			panelAddress, _ := strconv.Atoi(strings.Replace(msg, "debug panel ", "", -1))
-			debugSinglePanel(panels, panelAddress)
-		}
+func DoWOrkFigureOutAName(msg string, panels [][]*panel.Panel, playlist *Playlist) {
+	var msgCharsAsDots []fontmap.Letter
+	var virtualBoard VirtualBoard
 
-		// clear the message and the virtualBoard, ready for the next message
-		msgCharsAsDots = msgCharsAsDots[:0]
-		virtualBoard = virtualBoard[:0]
+	if msg == "debug all panels" || msg == "debug panels" {
+		debugPanelAddressByGoingInOrder(panels)
+	}
+	if strings.Contains(msg, "debug panel") {
+		panelAddress, _ := strconv.Atoi(strings.Replace(msg, "debug panel ", "", -1))
+		debugSinglePanel(panels, panelAddress)
+	}
+	// clear the message and the virtualBoard, ready for the next message
+	msgCharsAsDots = msgCharsAsDots[:0]
+	virtualBoard = virtualBoard[:0]
+	msgCharsAsDots = fontmap.Render(msg)
+	matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g|gif)").FindStringSubmatch(msg)
+	if len(matchedUrls) > 0 {
+		virtualBoard = downloadImage(playlist, matchedUrls[0], flipBoardDisplayOptions.Inverted, flipBoardDisplayOptions.BWThreshold)
+	} else {
+		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
 
-		msgCharsAsDots = fontmap.Render(msg)
-
-		matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g|gif)").FindStringSubmatch(msg)
-		if len(matchedUrls) > 0 {
-			virtualBoard = downloadImage(playlist, matchedUrls[0], flipBoardDisplayOptions.Inverted, flipBoardDisplayOptions.BWThreshold)
-		} else {
-			virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
-
-			// todo, it would be nice to just invert it without through the whole board again
-			// handle inverting for words
-			if flipBoardDisplayOptions.Inverted {
-				for _, row := range virtualBoard {
-					for charIndex, x := range row {
-						if x == 0 {
-							row[charIndex] = 1
-						} else {
-							row[charIndex] = 0
-						}
+		// todo, it would be nice to just invert it without through the whole board again
+		// handle inverting for words
+		if flipBoardDisplayOptions.Inverted {
+			for _, row := range virtualBoard {
+				for charIndex, x := range row {
+					if x == 0 {
+						row[charIndex] = 1
+					} else {
+						row[charIndex] = 0
 					}
 				}
 			}
 		}
-
-		frameIndex := 0
-		frameIndex = frameIndex
-
-		// if autofill, try to determine the average around the borders and use that
-		fill := flipBoardDisplayOptions.Fill == "true"
-		if flipBoardDisplayOptions.Fill == "" {
-			var sum int
-			for _, row := range virtualBoard {
-				sum += row[0]           // left y going down
-				sum += row[len(row)-1] // right y going down
-			}
-
-			for i := range virtualBoard[0] {
-				sum += virtualBoard[0][i]                   // top x going right
-				sum += virtualBoard[len(virtualBoard)-1][i] // bottom x going right
-			}
-
-			height := len(virtualBoard)
-			width := len(virtualBoard[0])
-			fill = float32(sum)/float32(2*(width+height)) >= .5
-			fmt.Println("setting autofill to be: ", fill)
+	}
+	frameIndex := 0
+	frameIndex = frameIndex
+	// if autofill, try to determine the average around the borders and use that
+	fill := flipBoardDisplayOptions.Fill == "true"
+	if flipBoardDisplayOptions.Fill == "" {
+		var sum int
+		for _, row := range virtualBoard {
+			sum += row[0]          // left y going down
+			sum += row[len(row)-1] // right y going down
 		}
 
-		// set the fill value
-		for _, row := range panels {
-			for _, p := range row {
-				p.Clear(fill)
-			}
+		for i := range virtualBoard[0] {
+			sum += virtualBoard[0][i]                   // top x going right
+			sum += virtualBoard[len(virtualBoard)-1][i] // bottom x going right
 		}
 
-		printBoard(virtualBoard)
-
-		// the library fliped height and width by accident, we'll work around it
-		panelWidth := playlist.PanelInfo.PanelHeight
-		panelHeight := playlist.PanelInfo.PanelWidth
-		// god damn it, its really confusing
-
-		// convert virtual virtualBoard to a physical virtualBoard
-		boardWidth := panelWidth * len(playlist.PanelAddressesLayout[0])
-		boardHeight := panelHeight * len(playlist.PanelAddressesLayout)
-		xOffSet, yOffSet := findOffSets(virtualBoard, boardWidth, boardHeight)
-
-		for y := 0; y < len(virtualBoard); y++ {
-			for x := 0; x < len(virtualBoard[y]); x++ {
-				// which dot should we set?
-				panelXCoord := (x + xOffSet) / panelWidth
-				panelYCoord := (y + yOffSet) / panelHeight
-				dotXCoord := (x+xOffSet) % panelWidth
-				dotYCoord := (y+yOffSet) % panelHeight
-
-				if dotXCoord < 0 || dotYCoord < 0 || panelXCoord < 0 || panelYCoord < 0 {
-					continue
-				}
-
-				if panelYCoord >= len(playlist.PanelAddressesLayout) {
-					log.Printf("Warning: Frame %d row %d, exceeds specified HEIGHT %d, dropping the rest of it.", frameIndex, x, panelHeight)
-					continue
-				}
-
-				if panelXCoord >= len(playlist.PanelAddressesLayout[panelYCoord]) {
-					log.Printf("Warning: Frame %d cell(%d,%d) exceeds specified WIDTH %d, dropping the rest of it.", frameIndex, y, x, panelWidth)
-					continue
-				}
-
-				//log.Printf("Setting panel(%d,%d), adddress %d, dot(%d,%d) with %t", panelYCoord, panelXCoord, p.Address, dotYCoord, dotXCoord, dotValue)
-
-				// there's a bug in this library, where x and y are flipped. we need to handle this later
-				p := panels[panelYCoord][panelXCoord]
-				dotValue := virtualBoard[y][x] == 1
-				p.Set(dotYCoord, dotXCoord, dotValue)
-			}
+		height := len(virtualBoard)
+		width := len(virtualBoard[0])
+		fill = float32(sum)/float32(2*(width+height)) >= .5
+		fmt.Println("setting autofill to be: ", fill)
+	}
+	// set the fill value
+	for _, row := range panels {
+		for _, p := range row {
+			p.Clear(fill)
 		}
+	}
+	printBoard(virtualBoard)
+	// the library fliped height and width by accident, we'll work around it
+	panelWidth := playlist.PanelInfo.PanelHeight
+	panelHeight := playlist.PanelInfo.PanelWidth
+	// god damn it, its really confusing
+	// convert virtual virtualBoard to a physical virtualBoard
+	boardWidth := panelWidth * len(playlist.PanelAddressesLayout[0])
+	boardHeight := panelHeight * len(playlist.PanelAddressesLayout)
+	xOffSet, yOffSet := findOffSets(virtualBoard, boardWidth, boardHeight)
+	for y := 0; y < len(virtualBoard); y++ {
+		for x := 0; x < len(virtualBoard[y]); x++ {
+			// which dot should we set?
+			panelXCoord := (x + xOffSet) / panelWidth
+			panelYCoord := (y + yOffSet) / panelHeight
+			dotXCoord := (x + xOffSet) % panelWidth
+			dotYCoord := (y + yOffSet) % panelHeight
 
-		// send our virtual panels to the physical virtualBoard
-		for _, row := range panels {
-			for _, p := range row {
-				//p.PrintState()
-				p.Send()
+			if dotXCoord < 0 || dotYCoord < 0 || panelXCoord < 0 || panelYCoord < 0 {
+				continue
 			}
+
+			if panelYCoord >= len(playlist.PanelAddressesLayout) {
+				log.Printf("Warning: Frame %d row %d, exceeds specified HEIGHT %d, dropping the rest of it.", frameIndex, x, panelHeight)
+				continue
+			}
+
+			if panelXCoord >= len(playlist.PanelAddressesLayout[panelYCoord]) {
+				log.Printf("Warning: Frame %d cell(%d,%d) exceeds specified WIDTH %d, dropping the rest of it.", frameIndex, y, x, panelWidth)
+				continue
+			}
+
+			//log.Printf("Setting panel(%d,%d), adddress %d, dot(%d,%d) with %t", panelYCoord, panelXCoord, p.Address, dotYCoord, dotXCoord, dotValue)
+
+			// there's a bug in this library, where x and y are flipped. we need to handle this later
+			p := panels[panelYCoord][panelXCoord]
+			dotValue := virtualBoard[y][x] == 1
+			p.Set(dotYCoord, dotXCoord, dotValue)
+		}
+	}
+	// send our virtual panels to the physical virtualBoard
+	for _, row := range panels {
+		for _, p := range row {
+			//p.PrintState()
+			p.Send()
 		}
 	}
 }
