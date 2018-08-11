@@ -158,7 +158,7 @@ func main() {
 
 	messages := make(chan string)
 	flipBoardDisplayOptions.Append = false
-	go startSlackListener(*slackToken, playlist, panels, messages)
+	go startSlackListener(*slackToken, messages)
 
 
 	// handle messages
@@ -515,7 +515,7 @@ func startVideoPlayer(playlist *Playlist, panels [][]*panel.Panel) {
 	}
 }
 
-func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel.Panel, flipboardMsgChn chan string) {
+func startSlackListener(slackToken string, flipboardMsgChn chan string) {
 	api := slack.New(slackToken)
 	logger := log.New(os.Stdout, "slack-bot: ", log.Lshortfile|log.LstdFlags)
 	slack.SetLogger(logger)
