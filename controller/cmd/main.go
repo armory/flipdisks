@@ -210,6 +210,18 @@ func main() {
 		fill := flipBoardDisplayOptions.Fill == "true"
 		if flipBoardDisplayOptions.Fill == "" {
 			var sum int
+
+			// Go across the top to add up all the values
+			for x := range virtualBoard[0] {
+				sum += virtualBoard[0][x]
+			}
+
+			// go across the bottom to add up all the values
+			for x := range virtualBoard[len(virtualBoard)-1] {
+				sum += virtualBoard[len(virtualBoard)-1][x]
+			}
+
+			// go on the left and right side to add up all the values
 			for _, row := range virtualBoard {
 				// sometimes the row will be empty, because of a \n, let's just ignore it
 				if len(row) > 0 {
@@ -222,19 +234,9 @@ func main() {
 				}
 			}
 
-			// top x going right
-			for x := range virtualBoard[0] {
-				sum += virtualBoard[0][x]
-			}
-
-			// bottom x going right
-			for x := range virtualBoard[len(virtualBoard)-1] {
-				sum += virtualBoard[len(virtualBoard)-1][x]
-			}
-
 			height := len(virtualBoard)
 			width := len(virtualBoard[0])
-			fill = float32(sum)/float32(2*(width+height)) >= .5
+			fill = float32(sum)/float32(2*(width+height)) >= .5 // magic number
 			fmt.Println("setting autofill to be: ", fill)
 		}
 
