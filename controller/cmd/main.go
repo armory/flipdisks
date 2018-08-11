@@ -204,6 +204,8 @@ func main() {
 		frameIndex := 0
 		frameIndex = frameIndex
 
+		printBoard(virtualBoard)
+
 		// if autofill, try to determine the average around the borders and use that
 		fill := flipBoardDisplayOptions.Fill == "true"
 		if flipBoardDisplayOptions.Fill == "" {
@@ -213,9 +215,14 @@ func main() {
 				sum += row[len(row)-1] // right y going down
 			}
 
-			for i := range virtualBoard[0] {
-				sum += virtualBoard[0][i]                   // top x going right
-				sum += virtualBoard[len(virtualBoard)-1][i] // bottom x going right
+			// top x going right
+			for x := range virtualBoard[0] {
+				sum += virtualBoard[0][x]
+			}
+
+			// bottom x going right
+			for x := range virtualBoard[len(virtualBoard)-1] {
+				sum += virtualBoard[len(virtualBoard)-1][x]
 			}
 
 			height := len(virtualBoard)
