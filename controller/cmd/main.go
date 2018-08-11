@@ -141,12 +141,21 @@ func main() {
 
 	messages := make(chan string)
 	flipBoardDisplayOptions.Append = false
-	go startSlackListener(*slackToken, messages)
 
-	// handle messages
-	for msg := range messages {
-		DoWOrkFigureOutAName(msg, panels, playlist)
-	}
+	msg := `
+Hello
+`
+
+	DoWOrkFigureOutAName(msg, panels, playlist)
+
+	_ = slackToken
+	_ = messages
+	//go startSlackListener(*slackToken, messages)
+	//
+	//// handle messages
+	//for msg := range messages {
+	//	DoWOrkFigureOutAName(msg, panels, playlist)
+	//}
 }
 
 func createPanels(playlist *Playlist, panels [][]*panel.Panel, port *string, baud *int) [][]*panel.Panel {
