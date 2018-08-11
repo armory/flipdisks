@@ -1,0 +1,30 @@
+[Unit]
+Description=Flipdisk Controller
+After=network.target
+# StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=root
+Group=root
+# LimitNOFILE=1024
+
+Restart=always
+RestartSec=1
+
+WorkingDirectory=/home/pi/Desktop
+ExecStart=/home/pi/Desktop/main -p /dev/ttyUSB0   # todo, figure out how to get secrets in here
+
+
+# make sure log directory exists and owned by syslog
+# PermissionsStartOnly=true
+# # ExecStartPre=/bin/mkdir -p /var/log/flipdisk
+# ExecStartPre=/bin/chown syslog:adm /var/log/flipdisk
+# ExecStartPre=/bin/chmod 755 /var/log/flipdisk
+# StandardOutput=syslog
+# StandardError=syslog
+# SyslogIdentifier=flipdisk
+
+
+[Install]
+WantedBy=multi-user.target
