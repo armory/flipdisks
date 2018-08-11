@@ -118,8 +118,8 @@ func main() {
 	playlistJson, _ := json.Marshal(playlist)
 	playlistJson = playlistJson
 
-	width := flag.Int("w", 28, "width of panel")
-	height := flag.Int("h", 7, "width of panel")
+	//width := flag.Int("w", 28, "width of panel")
+	//height := flag.Int("h", 7, "width of panel")
 	port := flag.String("p", "/dev/tty.SLAB_USBtoUART", "the serial port, empty string to simulate")
 	baud := flag.Int("b", 9600, "baud rate of port")
 
@@ -135,13 +135,6 @@ func main() {
 	if err != nil {
 		log.Panicln("Could not get emojis from Github", err)
 	}
-
-
-	width = width
-	height = height
-	port = port
-	port = port
-	baud = baud
 
 	var panels [][]*panel.Panel
 	panels = createPanels(playlist, panels, port, baud)
