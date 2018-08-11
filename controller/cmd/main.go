@@ -213,19 +213,33 @@ func DoWOrkFigureOutAName(msg string, panels [][]*panel.Panel, playlist *Playlis
 	fill := flipBoardDisplayOptions.Fill == "true"
 	if flipBoardDisplayOptions.Fill == "" {
 		var sum int
-		for _, row := range virtualBoard {
-			sum += row[0]          // left y going down
-			sum += row[len(row)-1] // right y going down
+
+		// Go across the top to add up all the values
+		for x := range virtualBoard[0] {
+			sum += virtualBoard[0][x]
 		}
 
-		for i := range virtualBoard[0] {
-			sum += virtualBoard[0][i]                   // top x going right
-			sum += virtualBoard[len(virtualBoard)-1][i] // bottom x going right
+		// go across the bottom to add up all the values
+		for x := range virtualBoard[len(virtualBoard)-1] {
+			sum += virtualBoard[len(virtualBoard)-1][x]
+		}
+
+		// go on the left and right side to add up all the values
+		for _, row := range virtualBoard {
+			// sometimes the row will be empty, because of a \n, let's just ignore it
+			if len(row) > 0 {
+				sum += row[0] // left y going down
+			}
+
+			// if for some reason it's just a single row, we'll have already taken care of adding the sum before
+			if len(row) > 1 {
+				sum += row[len(row)-1] // right y going down
+			}
 		}
 
 		height := len(virtualBoard)
 		width := len(virtualBoard[0])
-		fill = float32(sum)/float32(2*(width+height)) >= .5
+		fill = float32(sum)/float32(2*(width+height)) >= .5 // magic number
 		fmt.Println("setting autofill to be: ", fill)
 	}
 	// set the fill value
