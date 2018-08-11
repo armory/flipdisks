@@ -144,6 +144,19 @@ func main() {
 	baud = baud
 
 	var panels [][]*panel.Panel
+	panels = createPanels(playlist, panels, port, baud)
+
+	messages := make(chan string)
+	flipBoardDisplayOptions.Append = false
+	go startSlackListener(*slackToken, messages)
+
+	// handle messages
+	for msg := range messages {
+		DoWOrkFigureOutAName(msg, panels, playlist)
+	}
+}
+
+func createPanels(playlist *Playlist, panels [][]*panel.Panel, port *string, baud *int) [][]*panel.Panel {
 	for y, row := range playlist.PanelAddressesLayout {
 		panels = append(panels, []*panel.Panel{})
 
@@ -152,19 +165,9 @@ func main() {
 			p.Address = []byte{byte(panelAddress)}
 
 			panels[y] = append(panels[y], p)
-			defer p.Close()
 		}
 	}
-
-	messages := make(chan string)
-	flipBoardDisplayOptions.Append = false
-	go startSlackListener(*slackToken, messages)
-
-
-	// handle messages
-	for msg := range messages {
-		DoWOrkFigureOutAName(msg, panels, playlist)
-	}
+	return panels
 }
 
 func DoWOrkFigureOutAName(msg string, panels [][]*panel.Panel, playlist *Playlist) {
