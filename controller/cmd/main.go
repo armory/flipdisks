@@ -211,8 +211,15 @@ func main() {
 		if flipBoardDisplayOptions.Fill == "" {
 			var sum int
 			for _, row := range virtualBoard {
-				sum += row[0]           // left y going down
-				sum += row[len(row)-1] // right y going down
+				// sometimes the row will be empty, because of a \n, let's just ignore it
+				if len(row) > 0 {
+					sum += row[0] // left y going down
+				}
+
+				// if for some reason it's just a single row, we'll have already taken care of adding the sum before
+				if len(row) > 1 {
+					sum += row[len(row)-1] // right y going down
+				}
 			}
 
 			// top x going right
