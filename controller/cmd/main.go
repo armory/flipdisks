@@ -535,10 +535,19 @@ func startSlackListener(slackToken string, flipboardMsgChn chan FlipBoardDisplay
 	rtm := api.NewRTM()
 	go rtm.ManageConnection()
 
+	var oldStopper chan struct{}
+
 	for msg := range rtm.IncomingEvents {
 		switch ev := msg.Data.(type) {
 		case *slack.MessageEvent:
-			handleSlackMsg(ev, rtm, flipboardMsgChn)
+			// close the hold handleSlackMsg
+			if oldStopper != nil {
+				close(oldStopper)
+			}
+
+			stopper := make(chan struct{})
+			go handleSlackMsg(ev, rtm, flipboardMsgChn, stopper)
+			oldStopper = stopper
 
 		case *slack.InvalidAuthEvent:
 			fmt.Printf("Invalid credentials")
@@ -551,7 +560,7 @@ func startSlackListener(slackToken string, flipboardMsgChn chan FlipBoardDisplay
 	}
 }
 
-func handleSlackMsg(slackEvent *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan FlipBoardDisplayOptions) {
+func handleSlackMsg(slackEvent *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan FlipBoardDisplayOptions, stopper chan struct{}) {
 	rawMsg := slackEvent.Msg.Text
 	if slackEvent.SubMessage != nil {
 		rawMsg = slackEvent.SubMessage.Text
@@ -573,11 +582,18 @@ func handleSlackMsg(slackEvent *slack.MessageEvent, rtm *slack.RTM, flipboardMsg
 		}
 	}
 
-	for _, msg := range messages {
-		fmt.Printf("Rendering Message: %+v\n", msg.Message)
+	for {
+		select {
+		case <-stopper:
+			break // we've received a new message, let's stop looping
+		default:
+			for _, msg := range messages {
+				fmt.Printf("Rendering Message: %+v\n", msg.Message)
 
-		flipboardMsgChn <- msg
-		time.Sleep(time.Millisecond * time.Duration(msg.DisplayTime))
+				flipboardMsgChn <- msg
+				time.Sleep(time.Millisecond * time.Duration(msg.DisplayTime))
+			}
+		}
 	}
 }
 
@@ -601,7 +617,9 @@ func splitMessageAndOptions(rawMsg string) ([]FlipBoardDisplayOptions) {
 		messages = append(messages, m)
 	} else {
 		rawPlaylist := playlistRegex.Split(rawMsg, -1)[1]
+
 		err := yaml.Unmarshal([]byte(rawPlaylist), &messages)
+
 		if err != nil {
 			fmt.Println("Could not unmarshal the yaml")
 			fmt.Println(err)
@@ -618,9 +636,32 @@ func cleanupSlackEncodedCharacters(msg string) string {
 	return msg
 }
 
+func (s *FlipBoardDisplayOptions) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type optsDefaults FlipBoardDisplayOptions
+
+	// todo, make this so that we don't have 2 defaults..
+	raw := optsDefaults{
+		DisplayTime: 2000,
+		Inverted:    false,
+		BWThreshold: 140, // magic
+		Fill:        "",
+		Align:       "center center",
+	}
+
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	raw.xAlign, raw.yAlign = getAlignOptions(raw.Align)
+
+	*s = FlipBoardDisplayOptions(raw)
+	return nil
+}
+
 func unmarshleOptions(rawOptions string) FlipBoardDisplayOptions {
 	// reset the options for each Message
 	opts := FlipBoardDisplayOptions{
+		DisplayTime: 2000,
 		Inverted:    false,
 		BWThreshold: 140, // magic
 		Fill:        "",
