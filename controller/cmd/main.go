@@ -165,9 +165,6 @@ func createPanels(playlist *Playlist, panels [][]*panel.Panel, port *string, bau
 }
 
 func DoWOrkFigureOutAName(msg FlipBoardDisplayOptions, panels [][]*panel.Panel, playlist *Playlist) {
-	var msgCharsAsDots []fontmap.Letter
-	var virtualBoard VirtualBoard
-
 	if msg.Message == "debug all panels" || msg.Message == "debug panels" {
 		debugPanelAddressByGoingInOrder(panels)
 	}
@@ -175,30 +172,9 @@ func DoWOrkFigureOutAName(msg FlipBoardDisplayOptions, panels [][]*panel.Panel, 
 		panelAddress, _ := strconv.Atoi(strings.Replace(msg.Message, "debug panel ", "", -1))
 		debugSinglePanel(panels, panelAddress)
 	}
-	// clear the Message and the virtualBoard, ready for the next Message
-	msgCharsAsDots = msgCharsAsDots[:0]
-	virtualBoard = virtualBoard[:0]
-	msgCharsAsDots = fontmap.Render(msg.Message)
-	matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g|gif)").FindStringSubmatch(msg.Message)
-	if len(matchedUrls) > 0 {
-		virtualBoard = downloadImage(playlist, matchedUrls[0], msg.Inverted, msg.BWThreshold)
-	} else {
-		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg.Message)
 
-		// todo, it would be nice to just invert it without through the whole board again
-		// handle inverting for words
-		if msg.Inverted {
-			for _, row := range virtualBoard {
-				for charIndex, x := range row {
-					if x == 0 {
-						row[charIndex] = 1
-					} else {
-						row[charIndex] = 0
-					}
-				}
-			}
-		}
-	}
+	virtualBoard := renderVirtualBoard(msg, playlist)
+
 	frameIndex := 0
 	frameIndex = frameIndex
 	// if autofill, try to determine the average around the borders and use that
@@ -286,6 +262,47 @@ func DoWOrkFigureOutAName(msg FlipBoardDisplayOptions, panels [][]*panel.Panel, 
 			p.Send()
 		}
 	}
+}
+
+type VirtualBoardCache map[FlipBoardDisplayOptions]VirtualBoard
+
+var virtualBoardCache VirtualBoardCache
+
+func renderVirtualBoard(msg FlipBoardDisplayOptions, playlist *Playlist) VirtualBoard {
+	var virtualBoard VirtualBoard
+
+	// try returning the cache
+	if virtualBoardCache == nil {
+		virtualBoardCache = VirtualBoardCache{}
+	} else if virtualBoardCache[msg] != nil {
+		return virtualBoardCache[msg]
+	}
+
+	matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g|gif)").FindStringSubmatch(msg.Message)
+	if len(matchedUrls) > 0 {
+		virtualBoard = downloadImage(playlist, matchedUrls[0], msg.Inverted, msg.BWThreshold)
+	} else {
+		msgCharsAsDots := fontmap.Render(msg.Message)
+		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg.Message)
+
+		// todo, it would be nice to just invert it without through the whole board again
+		// handle inverting for words
+		if msg.Inverted {
+			for _, row := range virtualBoard {
+				for charIndex, x := range row {
+					if x == 0 {
+						row[charIndex] = 1
+					} else {
+						row[charIndex] = 0
+					}
+				}
+			}
+		}
+	}
+
+	// let's cache the result
+	virtualBoardCache[msg] = virtualBoard
+	return virtualBoard
 }
 
 func downloadImage(playlist *Playlist, imgUrl string, invertImage bool, bwThreshold int) VirtualBoard {
@@ -641,7 +658,7 @@ func (s *FlipBoardDisplayOptions) UnmarshalYAML(unmarshal func(interface{}) erro
 
 	// todo, make this so that we don't have 2 defaults..
 	raw := optsDefaults{
-		DisplayTime: 2000,
+		DisplayTime: 3000,
 		Inverted:    false,
 		BWThreshold: 140, // magic
 		Fill:        "",
