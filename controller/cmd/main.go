@@ -218,10 +218,11 @@ func DisplayMessageToPanels(msg FlipBoardDisplayOptions, panels [][]*panel.Panel
 		}
 	}
 	printBoard(virtualBoard)
-	// the library fliped height and width by accident, we'll work around it
+
+	// the library flipped height and width by accident, we'll work around it
 	panelWidth := playlist.PanelInfo.PanelHeight
 	panelHeight := playlist.PanelInfo.PanelWidth
-	// god damn it, its really confusing
+
 	// convert virtual virtualBoard to a physical virtualBoard
 	boardWidth := panelWidth * len(playlist.PanelAddressesLayout[0])
 	boardHeight := panelHeight * len(playlist.PanelAddressesLayout)
