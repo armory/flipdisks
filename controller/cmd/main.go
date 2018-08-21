@@ -279,7 +279,7 @@ func renderVirtualBoard(msg FlipBoardDisplayOptions, playlist *Playlist) Virtual
 		return virtualBoardCache[msg]
 	}
 
-	matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g|gif)").FindStringSubmatch(msg.Message)
+	matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g)").FindStringSubmatch(msg.Message)
 	if len(matchedUrls) > 0 {
 		virtualBoard = downloadImage(playlist, matchedUrls[0], msg.Inverted, msg.BWThreshold)
 	} else {
