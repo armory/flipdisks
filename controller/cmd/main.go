@@ -84,6 +84,7 @@ type FlipBoardDisplayOptions struct {
 }
 
 var githubToken *string
+var countdownDate string
 
 func main() {
 	log.Print("Starting flipdisk controller")
@@ -125,6 +126,7 @@ func main() {
 
 	slackToken := flag.String("slack-token", "", "Go get a slack token")
 	githubToken = flag.String("github-token", "", "Go get a github token")
+	flag.StringVar(&countdownDate,"countdown", "", fmt.Sprintf("Specify the countdown date in YYYY-MM-DD format"))
 	flag.Parse()
 
 	g, err := github.New(github.Token(*githubToken))
@@ -576,9 +578,14 @@ func startSlackListener(slackToken string, flipboardMsgChn chan FlipBoardDisplay
 			fmt.Printf("Invalid credentials")
 			return
 
+		case *slack.ConnectionErrorEvent:
+			fmt.Println("Connection Error!")
+			fmt.Printf("%#v\n", ev.ErrorObj.Error())
+
 		default:
 			fmt.Println("Event Received: ")
 			fmt.Printf("%#v\n", msg)
+			fmt.Printf("%#v\n", msg.Data)
 		}
 	}
 }
@@ -620,14 +627,15 @@ func handleSlackMsg(slackEvent *slack.MessageEvent, rtm *slack.RTM, flipboardMsg
 				time.Sleep(time.Millisecond * time.Duration(msg.DisplayTime))
 				fmt.Println("end sleeping")
 			}
-			messages = []FlipBoardDisplayOptions{countdown()}
+			if countdownDate != "" {
+				messages = []FlipBoardDisplayOptions{countdown()}
+			}
 		}
 	}
 }
 
 func countdown() FlipBoardDisplayOptions {
-	dateFmt := "01/02/06"
-	horizonEventTime, err := time.Parse(dateFmt, "08/20/19")
+	horizonEventTime, err := time.Parse("2006-01-02", countdownDate)
 	if err != nil {
 		fmt.Println(err)
 	}
