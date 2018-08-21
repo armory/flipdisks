@@ -595,29 +595,54 @@ func handleSlackMsg(slackEvent *slack.MessageEvent, rtm *slack.RTM, flipboardMsg
 
 	fmt.Printf("%#v \n", messages)
 
+	// do some message cleanup because of slack formatting
 	for _, msg := range messages {
-		msg.Message = renderSlackUsernames(msg.Message, rtm)
-		msg.Message = cleanupSlackEncodedCharacters(msg.Message)
-		msg.Message = renderSlackEmojis(msg.Message, rtm)
 		if strings.ToLower(msg.Message) == "help" {
 			respondWithHelpMsg(rtm, slackEvent.Msg.Channel)
 			return
 		}
+
+		msg.Message = renderSlackUsernames(msg.Message, rtm)
+		msg.Message = cleanupSlackEncodedCharacters(msg.Message)
+		msg.Message = renderSlackEmojis(msg.Message, rtm)
 	}
 
 	for {
 		select {
 		case <-stopper:
-			break // we've received a new message, let's stop looping
+			return // we've received a new message, let's stop looping
 		default:
 			for _, msg := range messages {
 				fmt.Printf("Rendering Message: %+v\n", msg.Message)
 
 				flipboardMsgChn <- msg
+				fmt.Println("sleeping", msg.DisplayTime)
 				time.Sleep(time.Millisecond * time.Duration(msg.DisplayTime))
+				fmt.Println("end sleeping")
 			}
+			messages = []FlipBoardDisplayOptions{countdown()}
 		}
 	}
+}
+
+func countdown() FlipBoardDisplayOptions {
+	dateFmt := "01/02/06"
+	horizonEventTime, err := time.Parse(dateFmt, "08/20/19")
+	if err != nil {
+		fmt.Println(err)
+	}
+	t := time.Now()
+	elapsed := horizonEventTime.Sub(t)
+	days := int(elapsed.Hours() / 24)
+	hours := int(elapsed.Hours()) % 24
+	mins := int(elapsed.Minutes()) % 60
+	secs := int(elapsed.Seconds()) % 60
+	msg := FlipBoardDisplayOptions{
+		Message:     fmt.Sprintf("HORIZON EVENT\n%d:%02d:%02d:%02d", days, hours, mins, secs),
+		DisplayTime: 1000,
+		Align:       "center center",
+	}
+	return msg
 }
 
 func splitMessageAndOptions(rawMsg string) ([]FlipBoardDisplayOptions) {
