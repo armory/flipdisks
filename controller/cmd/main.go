@@ -84,6 +84,7 @@ type FlipBoardDisplayOptions struct {
 }
 
 var githubToken *string
+var countdownDate string
 
 func main() {
 	log.Print("Starting flipdisk controller")
@@ -125,6 +126,7 @@ func main() {
 
 	slackToken := flag.String("slack-token", "", "Go get a slack token")
 	githubToken = flag.String("github-token", "", "Go get a github token")
+	flag.StringVar(&countdownDate,"countdown", "", fmt.Sprintf("Specify the countdown date in YYYY-MM-DD format"))
 	flag.Parse()
 
 	g, err := github.New(github.Token(*githubToken))
@@ -217,11 +219,16 @@ func DisplayMessageToPanels(msg FlipBoardDisplayOptions, panels [][]*panel.Panel
 			p.Clear(fill)
 		}
 	}
+
+	// set alignment options
+	msg.xAlign, msg.yAlign = getAlignOptions(msg.Align)
+
 	printBoard(virtualBoard)
-	// the library fliped height and width by accident, we'll work around it
+
+	// the library flipped height and width by accident, we'll work around it
 	panelWidth := playlist.PanelInfo.PanelHeight
 	panelHeight := playlist.PanelInfo.PanelWidth
-	// god damn it, its really confusing
+
 	// convert virtual virtualBoard to a physical virtualBoard
 	boardWidth := panelWidth * len(playlist.PanelAddressesLayout[0])
 	boardHeight := panelHeight * len(playlist.PanelAddressesLayout)
@@ -571,9 +578,14 @@ func startSlackListener(slackToken string, flipboardMsgChn chan FlipBoardDisplay
 			fmt.Printf("Invalid credentials")
 			return
 
+		case *slack.ConnectionErrorEvent:
+			fmt.Println("Connection Error!")
+			fmt.Printf("%#v\n", ev.ErrorObj.Error())
+
 		default:
 			fmt.Println("Event Received: ")
 			fmt.Printf("%#v\n", msg)
+			fmt.Printf("%#v\n", msg.Data)
 		}
 	}
 }
@@ -590,29 +602,55 @@ func handleSlackMsg(slackEvent *slack.MessageEvent, rtm *slack.RTM, flipboardMsg
 
 	fmt.Printf("%#v \n", messages)
 
+	// do some message cleanup because of slack formatting
 	for _, msg := range messages {
-		msg.Message = renderSlackUsernames(msg.Message, rtm)
-		msg.Message = cleanupSlackEncodedCharacters(msg.Message)
-		msg.Message = renderSlackEmojis(msg.Message, rtm)
 		if strings.ToLower(msg.Message) == "help" {
 			respondWithHelpMsg(rtm, slackEvent.Msg.Channel)
 			return
 		}
+
+		msg.Message = renderSlackUsernames(msg.Message, rtm)
+		msg.Message = cleanupSlackEncodedCharacters(msg.Message)
+		msg.Message = renderSlackEmojis(msg.Message, rtm)
 	}
 
 	for {
 		select {
 		case <-stopper:
-			break // we've received a new message, let's stop looping
+			return // we've received a new message, let's stop looping
 		default:
 			for _, msg := range messages {
 				fmt.Printf("Rendering Message: %+v\n", msg.Message)
 
 				flipboardMsgChn <- msg
+				fmt.Println("sleeping", msg.DisplayTime)
 				time.Sleep(time.Millisecond * time.Duration(msg.DisplayTime))
+				fmt.Println("end sleeping")
+			}
+			if countdownDate != "" {
+				messages = []FlipBoardDisplayOptions{countdown()}
 			}
 		}
 	}
+}
+
+func countdown() FlipBoardDisplayOptions {
+	horizonEventTime, err := time.Parse("2006-01-02", countdownDate)
+	if err != nil {
+		fmt.Println(err)
+	}
+	t := time.Now()
+	elapsed := horizonEventTime.Sub(t)
+	days := int(elapsed.Hours() / 24)
+	hours := int(elapsed.Hours()) % 24
+	mins := int(elapsed.Minutes()) % 60
+	secs := int(elapsed.Seconds()) % 60
+	msg := FlipBoardDisplayOptions{
+		Message:     fmt.Sprintf("HORIZON EVENT\n%d:%02d:%02d:%02d", days, hours, mins, secs),
+		DisplayTime: 1000,
+		Align:       "center center",
+	}
+	return msg
 }
 
 func splitMessageAndOptions(rawMsg string) ([]FlipBoardDisplayOptions) {
@@ -659,7 +697,7 @@ func (s *FlipBoardDisplayOptions) UnmarshalYAML(unmarshal func(interface{}) erro
 
 	// todo, make this so that we don't have 2 defaults..
 	raw := optsDefaults{
-		DisplayTime: 3000,
+		DisplayTime: 5000,
 		Inverted:    false,
 		BWThreshold: 140, // magic
 		Fill:        "",
@@ -679,7 +717,7 @@ func (s *FlipBoardDisplayOptions) UnmarshalYAML(unmarshal func(interface{}) erro
 func unmarshleOptions(rawOptions string) FlipBoardDisplayOptions {
 	// reset the options for each Message
 	opts := FlipBoardDisplayOptions{
-		DisplayTime: 2000,
+		DisplayTime: 5000,
 		Inverted:    false,
 		BWThreshold: 140, // magic
 		Fill:        "",
@@ -688,7 +726,6 @@ func unmarshleOptions(rawOptions string) FlipBoardDisplayOptions {
 
 	yaml.Unmarshal([]byte(rawOptions), &opts)
 
-	opts.xAlign, opts.yAlign = getAlignOptions(opts.Align)
 	return opts
 }
 
