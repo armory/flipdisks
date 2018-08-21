@@ -145,7 +145,7 @@ func main() {
 	go startSlackListener(*slackToken, msgsChan)
 
 	for msg := range msgsChan {
-		DoWOrkFigureOutAName(msg, panels, playlist)
+		DisplayMessageToPanels(msg, panels, playlist)
 	}
 }
 
@@ -165,7 +165,7 @@ func createPanels(playlist *Playlist, port *string, baud *int) [][]*panel.Panel 
 	return panels
 }
 
-func DoWOrkFigureOutAName(msg FlipBoardDisplayOptions, panels [][]*panel.Panel, playlist *Playlist) {
+func DisplayMessageToPanels(msg FlipBoardDisplayOptions, panels [][]*panel.Panel, playlist *Playlist) {
 	if msg.Message == "debug all panels" || msg.Message == "debug panels" {
 		debugPanelAddressByGoingInOrder(panels)
 	}
