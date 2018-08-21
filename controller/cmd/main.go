@@ -217,6 +217,10 @@ func DisplayMessageToPanels(msg FlipBoardDisplayOptions, panels [][]*panel.Panel
 			p.Clear(fill)
 		}
 	}
+
+	// set alignment options
+	msg.xAlign, msg.yAlign = getAlignOptions(msg.Align)
+
 	printBoard(virtualBoard)
 
 	// the library flipped height and width by accident, we'll work around it
@@ -689,7 +693,6 @@ func unmarshleOptions(rawOptions string) FlipBoardDisplayOptions {
 
 	yaml.Unmarshal([]byte(rawOptions), &opts)
 
-	opts.xAlign, opts.yAlign = getAlignOptions(opts.Align)
 	return opts
 }
 
