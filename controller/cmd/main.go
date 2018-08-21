@@ -70,6 +70,8 @@ type Playlist struct {
 }
 
 type FlipBoardDisplayOptions struct {
+	Message     string `yaml:"message"`
+	DisplayTime int    `yaml:"displayTime"`
 	Append      bool   `yaml:"append"`
 	Align       string `yaml:"align"`
 	xAlign      string
@@ -81,12 +83,10 @@ type FlipBoardDisplayOptions struct {
 	Fill        string `yml:"fill"`
 }
 
-var flipBoardDisplayOptions FlipBoardDisplayOptions
-
 var githubToken *string
 
 func main() {
-	log.Print("Starting")
+	log.Print("Starting flipdisk controller")
 
 	playlist := &Playlist{
 		Name:     "demo",
@@ -118,8 +118,8 @@ func main() {
 	playlistJson, _ := json.Marshal(playlist)
 	playlistJson = playlistJson
 
-	width := flag.Int("w", 28, "width of panel")
-	height := flag.Int("h", 7, "width of panel")
+	//width := flag.Int("w", 28, "width of panel")
+	//height := flag.Int("h", 7, "width of panel")
 	port := flag.String("p", "/dev/tty.SLAB_USBtoUART", "the serial port, empty string to simulate")
 	baud := flag.Int("b", 9600, "baud rate of port")
 
@@ -136,14 +136,22 @@ func main() {
 		log.Panicln("Could not get emojis from Github", err)
 	}
 
+	panels := createPanels(playlist, port, baud)
 
-	width = width
-	height = height
-	port = port
-	port = port
-	baud = baud
+	msgsChan := make(chan FlipBoardDisplayOptions)
 
+	_ = slackToken
+	_ = msgsChan
+	go startSlackListener(*slackToken, msgsChan)
+
+	for msg := range msgsChan {
+		DisplayMessageToPanels(msg, panels, playlist)
+	}
+}
+
+func createPanels(playlist *Playlist, port *string, baud *int) [][]*panel.Panel {
 	var panels [][]*panel.Panel
+
 	for y, row := range playlist.PanelAddressesLayout {
 		panels = append(panels, []*panel.Panel{})
 
@@ -152,152 +160,150 @@ func main() {
 			p.Address = []byte{byte(panelAddress)}
 
 			panels[y] = append(panels[y], p)
-			defer p.Close()
 		}
 	}
+	return panels
+}
 
-	messages := make(chan string)
-	flipBoardDisplayOptions.Append = false
-	go startSlackListener(*slackToken, playlist, panels, messages)
-	var msgCharsAsDots []fontmap.Letter
+func DisplayMessageToPanels(msg FlipBoardDisplayOptions, panels [][]*panel.Panel, playlist *Playlist) {
+	if msg.Message == "debug all panels" || msg.Message == "debug panels" {
+		debugPanelAddressByGoingInOrder(panels)
+	}
+	if strings.Contains(msg.Message, "debug panel") {
+		panelAddress, _ := strconv.Atoi(strings.Replace(msg.Message, "debug panel ", "", -1))
+		debugSinglePanel(panels, panelAddress)
+	}
 
+	virtualBoard := renderVirtualBoard(msg, playlist)
+
+	frameIndex := 0
+	frameIndex = frameIndex
+	// if autofill, try to determine the average around the borders and use that
+	fill := msg.Fill == "true"
+	if msg.Fill == "" {
+		var sum int
+
+		// Go across the top to add up all the values
+		for x := range virtualBoard[0] {
+			sum += virtualBoard[0][x]
+		}
+
+		// go across the bottom to add up all the values
+		for x := range virtualBoard[len(virtualBoard)-1] {
+			sum += virtualBoard[len(virtualBoard)-1][x]
+		}
+
+		// go on the left and right side to add up all the values
+		for _, row := range virtualBoard {
+			// sometimes the row will be empty, because of a \n, let's just ignore it
+			if len(row) > 0 {
+				sum += row[0] // left y going down
+			}
+
+			// if for some reason it's just a single row, we'll have already taken care of adding the sum before
+			if len(row) > 1 {
+				sum += row[len(row)-1] // right y going down
+			}
+		}
+
+		height := len(virtualBoard)
+		width := len(virtualBoard[0])
+		fill = float32(sum)/float32(2*(width+height)) >= .5 // magic number
+		//fmt.Println("setting autofill to be: ", fill)
+	}
+	// set the fill value
+	for _, row := range panels {
+		for _, p := range row {
+			p.Clear(fill)
+		}
+	}
+	printBoard(virtualBoard)
+	// the library fliped height and width by accident, we'll work around it
+	panelWidth := playlist.PanelInfo.PanelHeight
+	panelHeight := playlist.PanelInfo.PanelWidth
+	// god damn it, its really confusing
+	// convert virtual virtualBoard to a physical virtualBoard
+	boardWidth := panelWidth * len(playlist.PanelAddressesLayout[0])
+	boardHeight := panelHeight * len(playlist.PanelAddressesLayout)
+	xOffSet, yOffSet := findOffSets(msg, virtualBoard, boardWidth, boardHeight)
+	for y := 0; y < len(virtualBoard); y++ {
+		for x := 0; x < len(virtualBoard[y]); x++ {
+			// which dot should we set?
+			panelXCoord := (x + xOffSet) / panelWidth
+			panelYCoord := (y + yOffSet) / panelHeight
+			dotXCoord := (x + xOffSet) % panelWidth
+			dotYCoord := (y + yOffSet) % panelHeight
+
+			if dotXCoord < 0 || dotYCoord < 0 || panelXCoord < 0 || panelYCoord < 0 {
+				continue
+			}
+
+			if panelYCoord >= len(playlist.PanelAddressesLayout) {
+				log.Printf("Warning: Frame %d row %d, exceeds specified HEIGHT %d, dropping the rest of it.", frameIndex, x, panelHeight)
+				continue
+			}
+
+			if panelXCoord >= len(playlist.PanelAddressesLayout[panelYCoord]) {
+				log.Printf("Warning: Frame %d cell(%d,%d) exceeds specified WIDTH %d, dropping the rest of it.", frameIndex, y, x, panelWidth)
+				continue
+			}
+
+			//log.Printf("Setting panel(%d,%d), adddress %d, dot(%d,%d) with %t", panelYCoord, panelXCoord, p.Address, dotYCoord, dotXCoord, dotValue)
+
+			// there's a bug in this library, where x and y are flipped. we need to handle this later
+			p := panels[panelYCoord][panelXCoord]
+			dotValue := virtualBoard[y][x] == 1
+			p.Set(dotYCoord, dotXCoord, dotValue)
+		}
+	}
+	// send our virtual panels to the physical virtualBoard
+	for _, row := range panels {
+		for _, p := range row {
+			//p.PrintState()
+			p.Send()
+		}
+	}
+}
+
+type VirtualBoardCache map[FlipBoardDisplayOptions]VirtualBoard
+
+var virtualBoardCache VirtualBoardCache
+
+func renderVirtualBoard(msg FlipBoardDisplayOptions, playlist *Playlist) VirtualBoard {
 	var virtualBoard VirtualBoard
 
-	// handle messages
-	for msg := range messages {
-		if msg == "debug all panels" || msg == "debug panels" {
-			debugPanelAddressByGoingInOrder(panels)
-		}
+	// try returning the cache
+	if virtualBoardCache == nil {
+		virtualBoardCache = VirtualBoardCache{}
+	} else if virtualBoardCache[msg] != nil {
+		return virtualBoardCache[msg]
+	}
 
-		if strings.Contains(msg, "debug panel") {
-			panelAddress, _ := strconv.Atoi(strings.Replace(msg, "debug panel ", "", -1))
-			debugSinglePanel(panels, panelAddress)
-		}
+	matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g)").FindStringSubmatch(msg.Message)
+	if len(matchedUrls) > 0 {
+		virtualBoard = downloadImage(playlist, matchedUrls[0], msg.Inverted, msg.BWThreshold)
+	} else {
+		msgCharsAsDots := fontmap.Render(msg.Message)
+		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg.Message)
 
-		// clear the message and the virtualBoard, ready for the next message
-		msgCharsAsDots = msgCharsAsDots[:0]
-		virtualBoard = virtualBoard[:0]
-
-		msgCharsAsDots = fontmap.Render(msg)
-
-		matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g|gif)").FindStringSubmatch(msg)
-		if len(matchedUrls) > 0 {
-			virtualBoard = downloadImage(playlist, matchedUrls[0], flipBoardDisplayOptions.Inverted, flipBoardDisplayOptions.BWThreshold)
-		} else {
-			virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg)
-
-			// todo, it would be nice to just invert it without through the whole board again
-			// handle inverting for words
-			if flipBoardDisplayOptions.Inverted {
-				for _, row := range virtualBoard {
-					for charIndex, x := range row {
-						if x == 0 {
-							row[charIndex] = 1
-						} else {
-							row[charIndex] = 0
-						}
+		// todo, it would be nice to just invert it without through the whole board again
+		// handle inverting for words
+		if msg.Inverted {
+			for _, row := range virtualBoard {
+				for charIndex, x := range row {
+					if x == 0 {
+						row[charIndex] = 1
+					} else {
+						row[charIndex] = 0
 					}
 				}
 			}
 		}
-
-		frameIndex := 0
-		frameIndex = frameIndex
-
-		printBoard(virtualBoard)
-
-		// if autofill, try to determine the average around the borders and use that
-		fill := flipBoardDisplayOptions.Fill == "true"
-		if flipBoardDisplayOptions.Fill == "" {
-			var sum int
-
-			// Go across the top to add up all the values
-			for x := range virtualBoard[0] {
-				sum += virtualBoard[0][x]
-			}
-
-			// go across the bottom to add up all the values
-			for x := range virtualBoard[len(virtualBoard)-1] {
-				sum += virtualBoard[len(virtualBoard)-1][x]
-			}
-
-			// go on the left and right side to add up all the values
-			for _, row := range virtualBoard {
-				// sometimes the row will be empty, because of a \n, let's just ignore it
-				if len(row) > 0 {
-					sum += row[0] // left y going down
-				}
-
-				// if for some reason it's just a single row, we'll have already taken care of adding the sum before
-				if len(row) > 1 {
-					sum += row[len(row)-1] // right y going down
-				}
-			}
-
-			height := len(virtualBoard)
-			width := len(virtualBoard[0])
-			fill = float32(sum)/float32(2*(width+height)) >= .5 // magic number
-			fmt.Println("setting autofill to be: ", fill)
-		}
-
-		// set the fill value
-		for _, row := range panels {
-			for _, p := range row {
-				p.Clear(fill)
-			}
-		}
-
-		printBoard(virtualBoard)
-
-		// the library fliped height and width by accident, we'll work around it
-		panelWidth := playlist.PanelInfo.PanelHeight
-		panelHeight := playlist.PanelInfo.PanelWidth
-		// god damn it, its really confusing
-
-		// convert virtual virtualBoard to a physical virtualBoard
-		boardWidth := panelWidth * len(playlist.PanelAddressesLayout[0])
-		boardHeight := panelHeight * len(playlist.PanelAddressesLayout)
-		xOffSet, yOffSet := findOffSets(virtualBoard, boardWidth, boardHeight)
-
-		for y := 0; y < len(virtualBoard); y++ {
-			for x := 0; x < len(virtualBoard[y]); x++ {
-				// which dot should we set?
-				panelXCoord := (x + xOffSet) / panelWidth
-				panelYCoord := (y + yOffSet) / panelHeight
-				dotXCoord := (x+xOffSet) % panelWidth
-				dotYCoord := (y+yOffSet) % panelHeight
-
-				if dotXCoord < 0 || dotYCoord < 0 || panelXCoord < 0 || panelYCoord < 0 {
-					continue
-				}
-
-				if panelYCoord >= len(playlist.PanelAddressesLayout) {
-					log.Printf("Warning: Frame %d row %d, exceeds specified HEIGHT %d, dropping the rest of it.", frameIndex, x, panelHeight)
-					continue
-				}
-
-				if panelXCoord >= len(playlist.PanelAddressesLayout[panelYCoord]) {
-					log.Printf("Warning: Frame %d cell(%d,%d) exceeds specified WIDTH %d, dropping the rest of it.", frameIndex, y, x, panelWidth)
-					continue
-				}
-
-				//log.Printf("Setting panel(%d,%d), adddress %d, dot(%d,%d) with %t", panelYCoord, panelXCoord, p.Address, dotYCoord, dotXCoord, dotValue)
-
-				// there's a bug in this library, where x and y are flipped. we need to handle this later
-				p := panels[panelYCoord][panelXCoord]
-				dotValue := virtualBoard[y][x] == 1
-				p.Set(dotYCoord, dotXCoord, dotValue)
-			}
-		}
-
-		// send our virtual panels to the physical virtualBoard
-		for _, row := range panels {
-			for _, p := range row {
-				//p.PrintState()
-				p.Send()
-			}
-		}
 	}
+
+	// let's cache the result
+	virtualBoardCache[msg] = virtualBoard
+	return virtualBoard
 }
 
 func downloadImage(playlist *Playlist, imgUrl string, invertImage bool, bwThreshold int) VirtualBoard {
@@ -538,7 +544,7 @@ func startVideoPlayer(playlist *Playlist, panels [][]*panel.Panel) {
 	}
 }
 
-func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel.Panel, flipboardMsgChn chan string) {
+func startSlackListener(slackToken string, flipboardMsgChn chan FlipBoardDisplayOptions) {
 	api := slack.New(slackToken)
 	logger := log.New(os.Stdout, "slack-bot: ", log.Lshortfile|log.LstdFlags)
 	slack.SetLogger(logger)
@@ -547,59 +553,98 @@ func startSlackListener(slackToken string, playlist *Playlist, panels [][]*panel
 	rtm := api.NewRTM()
 	go rtm.ManageConnection()
 
+	var oldStopper chan struct{}
+
 	for msg := range rtm.IncomingEvents {
-		//fmt.Print("Event Received: ")
 		switch ev := msg.Data.(type) {
 		case *slack.MessageEvent:
-			handleSlackMsg(ev, rtm, flipboardMsgChn)
+			// close the hold handleSlackMsg
+			if oldStopper != nil {
+				close(oldStopper)
+			}
+
+			stopper := make(chan struct{})
+			go handleSlackMsg(ev, rtm, flipboardMsgChn, stopper)
+			oldStopper = stopper
 
 		case *slack.InvalidAuthEvent:
 			fmt.Printf("Invalid credentials")
 			return
 
 		default:
+			fmt.Println("Event Received: ")
+			fmt.Printf("%#v\n", msg)
 		}
 	}
 }
 
-func handleSlackMsg(ev *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan string) {
-	rawMsg := ev.Msg.Text
-	if ev.SubMessage != nil {
-		rawMsg = ev.SubMessage.Text
+func handleSlackMsg(slackEvent *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan FlipBoardDisplayOptions, stopper chan struct{}) {
+	rawMsg := slackEvent.Msg.Text
+	if slackEvent.SubMessage != nil {
+		rawMsg = slackEvent.SubMessage.Text
 	}
 
 	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
 
-	// reset the options for each message
-	flipBoardDisplayOptions = FlipBoardDisplayOptions{
-		Inverted:    false,
-		BWThreshold: 140, // magic
-		Fill:        "",
-		Align: "center center",
+	messages := splitMessageAndOptions(rawMsg)
+
+	fmt.Printf("%#v \n", messages)
+
+	for _, msg := range messages {
+		msg.Message = renderSlackUsernames(msg.Message, rtm)
+		msg.Message = cleanupSlackEncodedCharacters(msg.Message)
+		msg.Message = renderSlackEmojis(msg.Message, rtm)
+		if strings.ToLower(msg.Message) == "help" {
+			respondWithHelpMsg(rtm, slackEvent.Msg.Channel)
+			return
+		}
 	}
 
-	msgOptionSplit := regexp.MustCompile("\\s*--(-*)\\s*").Split(rawMsg, -1)
-	msg := msgOptionSplit[0]
-	if len(msgOptionSplit) > 1 {
-		rawOptions := msgOptionSplit[1]
-		flipBoardDisplayOptions = unmarshleOptions(rawOptions)
+	for {
+		select {
+		case <-stopper:
+			break // we've received a new message, let's stop looping
+		default:
+			for _, msg := range messages {
+				fmt.Printf("Rendering Message: %+v\n", msg.Message)
+
+				flipboardMsgChn <- msg
+				time.Sleep(time.Millisecond * time.Duration(msg.DisplayTime))
+			}
+		}
+	}
+}
+
+func splitMessageAndOptions(rawMsg string) ([]FlipBoardDisplayOptions) {
+	var messages []FlipBoardDisplayOptions
+
+	playlistRegex := regexp.MustCompile(`^---\n`)
+	isPlaylist := playlistRegex.Match([]byte(rawMsg))
+	if isPlaylist == false {
+		msgAndOptions := regexp.MustCompile(`\s*--(-+)\s*`).Split(rawMsg, -1)
+		var m FlipBoardDisplayOptions
+
+		rawOptions := ""
+		if len(msgAndOptions) > 1 { // is there options?
+			rawOptions = msgAndOptions[1]
+		}
+
+		m = unmarshleOptions(rawOptions)
+		m.Message = msgAndOptions[0]
+
+		messages = append(messages, m)
+	} else {
+		rawPlaylist := playlistRegex.Split(rawMsg, -1)[1]
+
+		err := yaml.Unmarshal([]byte(rawPlaylist), &messages)
+
+		if err != nil {
+			fmt.Println("Could not unmarshal the yaml")
+			fmt.Println(err)
+		}
 	}
 
-	flipBoardDisplayOptions.xAlign, flipBoardDisplayOptions.yAlign = getAlignOptions(flipBoardDisplayOptions.Align)
-
-	fmt.Printf("%#v \n", flipBoardDisplayOptions)
-
-	msg = renderSlackUsernames(msg, rtm)
-	msg = cleanupSlackEncodedCharacters(msg)
-	msg = renderSlackEmojis(msg, rtm)
-
-	fmt.Printf("Rendering message: %+v\n", msg)
-	if msg == "help" {
-		respondWithHelpMsg(rtm, ev.Msg.Channel)
-		return
-	}
-
-	flipboardMsgChn <- msg
+	return messages
 }
 
 func cleanupSlackEncodedCharacters(msg string) string {
@@ -609,11 +654,42 @@ func cleanupSlackEncodedCharacters(msg string) string {
 	return msg
 }
 
-func unmarshleOptions(rawOptions string) FlipBoardDisplayOptions {
-	var flipBoardDisplayOptions FlipBoardDisplayOptions
-	yaml.Unmarshal([]byte(rawOptions), &flipBoardDisplayOptions)
+func (s *FlipBoardDisplayOptions) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type optsDefaults FlipBoardDisplayOptions
 
-	return flipBoardDisplayOptions
+	// todo, make this so that we don't have 2 defaults..
+	raw := optsDefaults{
+		DisplayTime: 3000,
+		Inverted:    false,
+		BWThreshold: 140, // magic
+		Fill:        "",
+		Align:       "center center",
+	}
+
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	raw.xAlign, raw.yAlign = getAlignOptions(raw.Align)
+
+	*s = FlipBoardDisplayOptions(raw)
+	return nil
+}
+
+func unmarshleOptions(rawOptions string) FlipBoardDisplayOptions {
+	// reset the options for each Message
+	opts := FlipBoardDisplayOptions{
+		DisplayTime: 2000,
+		Inverted:    false,
+		BWThreshold: 140, // magic
+		Fill:        "",
+		Align:       "center center",
+	}
+
+	yaml.Unmarshal([]byte(rawOptions), &opts)
+
+	opts.xAlign, opts.yAlign = getAlignOptions(opts.Align)
+	return opts
 }
 
 func getAlignOptions(align string) (string, string) {
@@ -630,7 +706,7 @@ func getAlignOptions(align string) (string, string) {
 func renderSlackUsernames(msg string, rtm *slack.RTM) string {
 	userIds := regexp.MustCompile("<@\\w+>").FindAllString(msg, -1)
 	for _, slackFmtMsgUserId := range userIds {
-		// in the message we'll receive something like "<@U123123>", the id is actually "U123123"
+		// in the Message we'll receive something like "<@U123123>", the id is actually "U123123"
 		userId := strings.Replace(strings.Replace(slackFmtMsgUserId, "<@", "", 1), ">", "", 1)
 
 		user, err := rtm.GetUserInfo(userId)
@@ -654,8 +730,8 @@ You can also supply options for the board by doing:
 
 	msg += "```"
 	msg += `
-Your message, 🚀, or img_url goes here.
---
+Your Message, 🚀, or img_url goes here.
+---
 align:        # 10 5           // set position of media; horizontally or vertically
 align:        # center center  // (left,center,right)  (top,center,bottom)
 inverted:     # (true/false) invert the text or image
@@ -687,7 +763,7 @@ func renderSlackEmojis(msg string, rtm *slack.RTM) string {
 
 	emojis := regexp.MustCompile(":\\w+:").FindAllString(msg, -1)
 	for _, slackFmtMsgEmoji := range emojis {
-		// in the message we'll receive something like ":smile:", this will actually return 😊
+		// in the Message we'll receive something like ":smile:", this will actually return 😊
 		emojiName := strings.Replace(strings.Replace(slackFmtMsgEmoji, ":", "", 1), ":", "", 1)
 
 		if emojiName != "" {
@@ -714,12 +790,10 @@ func renderSlackEmojis(msg string, rtm *slack.RTM) string {
 	return msg
 }
 
-
-
-func findOffSets(virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, int) {
+func findOffSets(options FlipBoardDisplayOptions, virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, int) {
 	var xOffSet int
 
-	switch flipBoardDisplayOptions.xAlign {
+	switch options.xAlign {
 	case "left":
 		xOffSet = 0
 	case "center":
@@ -728,12 +802,12 @@ func findOffSets(virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, i
 	case "right":
 		xOffSet = boardWidth - len(virtualBoard[0])
 	default:
-		xOffSet, _ = strconv.Atoi(flipBoardDisplayOptions.xAlign)
+		xOffSet, _ = strconv.Atoi(options.xAlign)
 	}
 
 	var yOffSet int
 
-	switch flipBoardDisplayOptions.yAlign {
+	switch options.yAlign {
 	case "top":
 		// we don't do anything
 	case "center":
@@ -741,7 +815,7 @@ func findOffSets(virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, i
 	case "bottom":
 		yOffSet = boardHeight - len(virtualBoard)
 	default:
-		yOffSet, _ = strconv.Atoi(flipBoardDisplayOptions.yAlign)
+		yOffSet, _ = strconv.Atoi(options.yAlign)
 	}
 
 	return xOffSet, yOffSet
