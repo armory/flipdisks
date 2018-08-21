@@ -136,8 +136,7 @@ func main() {
 		log.Panicln("Could not get emojis from Github", err)
 	}
 
-	var panels [][]*panel.Panel
-	panels = createPanels(playlist, panels, port, baud)
+	panels := createPanels(playlist, port, baud)
 
 	msgsChan := make(chan FlipBoardDisplayOptions)
 
@@ -150,7 +149,9 @@ func main() {
 	}
 }
 
-func createPanels(playlist *Playlist, panels [][]*panel.Panel, port *string, baud *int) [][]*panel.Panel {
+func createPanels(playlist *Playlist, port *string, baud *int) [][]*panel.Panel {
+	var panels [][]*panel.Panel
+
 	for y, row := range playlist.PanelAddressesLayout {
 		panels = append(panels, []*panel.Panel{})
 
