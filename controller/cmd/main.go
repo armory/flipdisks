@@ -664,7 +664,7 @@ func (s *FlipBoardDisplayOptions) UnmarshalYAML(unmarshal func(interface{}) erro
 
 	// todo, make this so that we don't have 2 defaults..
 	raw := optsDefaults{
-		DisplayTime: 3000,
+		DisplayTime: 5000,
 		Inverted:    false,
 		BWThreshold: 140, // magic
 		Fill:        "",
@@ -684,7 +684,7 @@ func (s *FlipBoardDisplayOptions) UnmarshalYAML(unmarshal func(interface{}) erro
 func unmarshleOptions(rawOptions string) FlipBoardDisplayOptions {
 	// reset the options for each Message
 	opts := FlipBoardDisplayOptions{
-		DisplayTime: 2000,
+		DisplayTime: 5000,
 		Inverted:    false,
 		BWThreshold: 140, // magic
 		Fill:        "",
