@@ -18,17 +18,18 @@ type FlipBoardDisplayOptions struct {
 	Fill        string `yml:"fill"`
 }
 
-func (s *FlipBoardDisplayOptions) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	type optsDefaults FlipBoardDisplayOptions
-
-	// todo, make this so that we don't have 2 defaults..
-	raw := optsDefaults{
-		DisplayTime: 5000,
+func GetDefaultOptions() FlipBoardDisplayOptions {
+	return FlipBoardDisplayOptions{
+		DisplayTime: 10000,
 		Inverted:    false,
 		BWThreshold: 140, // magic
 		Fill:        "",
 		Align:       "center center",
 	}
+}
+
+func (s *FlipBoardDisplayOptions) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	raw := GetDefaultOptions()
 
 	if err := unmarshal(&raw); err != nil {
 		return err
