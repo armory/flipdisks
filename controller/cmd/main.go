@@ -11,7 +11,6 @@ import (
 	_ "image/png"
 	"log"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -19,10 +18,10 @@ import (
 
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/armory/flipdisks/controller/pkg/github"
+	"github.com/armory/flipdisks/controller/pkg/options"
+	"github.com/armory/flipdisks/controller/pkg/slackbot"
 	"github.com/kevinawoo/flipdots/panel"
 	"github.com/nfnt/resize"
-	"github.com/nlopes/slack"
-	"gopkg.in/yaml.v2"
 )
 
 type MetadataType struct {
@@ -69,20 +68,6 @@ type Playlist struct {
 	PanelAddressesLayout [][]int
 }
 
-type FlipBoardDisplayOptions struct {
-	Message     string `yaml:"message"`
-	DisplayTime int    `yaml:"displayTime"`
-	Append      bool   `yaml:"append"`
-	Align       string `yaml:"align"`
-	xAlign      string
-	yAlign      string
-	FontSize    int    `yaml:"font-size"`
-	Kerning     int    `yaml:"kerning"`
-	Inverted    bool   `yaml:"inverted"`
-	BWThreshold int    `yaml:"bwThreshold"`
-	Fill        string `yml:"fill"`
-}
-
 var githubToken *string
 var countdownDate string
 
@@ -126,25 +111,26 @@ func main() {
 
 	slackToken := flag.String("slack-token", "", "Go get a slack token")
 	githubToken = flag.String("github-token", "", "Go get a github token")
-	flag.StringVar(&countdownDate,"countdown", "", fmt.Sprintf("Specify the countdown date in YYYY-MM-DD format"))
+	flag.StringVar(&countdownDate, "countdown", "", fmt.Sprintf("Specify the countdown date in YYYY-MM-DD format"))
 	flag.Parse()
 
 	g, err := github.New(github.Token(*githubToken))
 	if err != nil {
 		log.Panic("Could not create githubClient")
 	}
-	githubEmojiLookup, err = g.GetEmojis()
+	githubEmojiLookup, err := g.GetEmojis()
 	if err != nil {
 		log.Panicln("Could not get emojis from Github", err)
 	}
 
 	panels := createPanels(playlist, port, baud)
 
-	msgsChan := make(chan FlipBoardDisplayOptions)
+	msgsChan := make(chan options.FlipBoardDisplayOptions)
 
 	_ = slackToken
 	_ = msgsChan
-	go startSlackListener(*slackToken, msgsChan)
+	slack := slackbot.NewSlack(countdownDate, githubEmojiLookup)
+	go slack.StartSlackListener(*slackToken, msgsChan)
 
 	for msg := range msgsChan {
 		DisplayMessageToPanels(msg, panels, playlist)
@@ -167,7 +153,7 @@ func createPanels(playlist *Playlist, port *string, baud *int) [][]*panel.Panel 
 	return panels
 }
 
-func DisplayMessageToPanels(msg FlipBoardDisplayOptions, panels [][]*panel.Panel, playlist *Playlist) {
+func DisplayMessageToPanels(msg options.FlipBoardDisplayOptions, panels [][]*panel.Panel, playlist *Playlist) {
 	if msg.Message == "debug all panels" || msg.Message == "debug panels" {
 		debugPanelAddressByGoingInOrder(panels)
 	}
@@ -221,7 +207,7 @@ func DisplayMessageToPanels(msg FlipBoardDisplayOptions, panels [][]*panel.Panel
 	}
 
 	// set alignment options
-	msg.xAlign, msg.yAlign = getAlignOptions(msg.Align)
+	msg.XAlign, msg.YAlign = options.GetAlignOptions(msg.Align)
 
 	printBoard(virtualBoard)
 
@@ -272,11 +258,11 @@ func DisplayMessageToPanels(msg FlipBoardDisplayOptions, panels [][]*panel.Panel
 	}
 }
 
-type VirtualBoardCache map[FlipBoardDisplayOptions]VirtualBoard
+type VirtualBoardCache map[options.FlipBoardDisplayOptions]VirtualBoard
 
 var virtualBoardCache VirtualBoardCache
 
-func renderVirtualBoard(msg FlipBoardDisplayOptions, playlist *Playlist) VirtualBoard {
+func renderVirtualBoard(msg options.FlipBoardDisplayOptions, playlist *Playlist) VirtualBoard {
 	var virtualBoard VirtualBoard
 
 	// try returning the cache
@@ -551,286 +537,10 @@ func startVideoPlayer(playlist *Playlist, panels [][]*panel.Panel) {
 	}
 }
 
-func startSlackListener(slackToken string, flipboardMsgChn chan FlipBoardDisplayOptions) {
-	api := slack.New(slackToken)
-	logger := log.New(os.Stdout, "slack-bot: ", log.Lshortfile|log.LstdFlags)
-	slack.SetLogger(logger)
-	api.SetDebug(false)
-
-	rtm := api.NewRTM()
-	go rtm.ManageConnection()
-
-	var oldStopper chan struct{}
-
-	for msg := range rtm.IncomingEvents {
-		switch ev := msg.Data.(type) {
-		case *slack.MessageEvent:
-			// close the hold handleSlackMsg
-			if oldStopper != nil {
-				close(oldStopper)
-			}
-
-			stopper := make(chan struct{})
-			go handleSlackMsg(ev, rtm, flipboardMsgChn, stopper)
-			oldStopper = stopper
-
-		case *slack.InvalidAuthEvent:
-			fmt.Printf("Invalid credentials")
-			return
-
-		case *slack.ConnectionErrorEvent:
-			fmt.Println("Connection Error!")
-			fmt.Printf("%#v\n", ev.ErrorObj.Error())
-
-		default:
-			fmt.Println("Event Received: ")
-			fmt.Printf("%#v\n", msg)
-			fmt.Printf("%#v\n", msg.Data)
-		}
-	}
-}
-
-func handleSlackMsg(slackEvent *slack.MessageEvent, rtm *slack.RTM, flipboardMsgChn chan FlipBoardDisplayOptions, stopper chan struct{}) {
-	rawMsg := slackEvent.Msg.Text
-	if slackEvent.SubMessage != nil {
-		rawMsg = slackEvent.SubMessage.Text
-	}
-
-	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
-
-	messages := splitMessageAndOptions(rawMsg)
-
-	fmt.Printf("%#v \n", messages)
-
-	// do some message cleanup because of slack formatting
-	for _, msg := range messages {
-		if strings.ToLower(msg.Message) == "help" {
-			respondWithHelpMsg(rtm, slackEvent.Msg.Channel)
-			return
-		}
-
-		msg.Message = renderSlackUsernames(msg.Message, rtm)
-		msg.Message = cleanupSlackEncodedCharacters(msg.Message)
-		msg.Message = renderSlackEmojis(msg.Message, rtm)
-	}
-
-	for {
-		select {
-		case <-stopper:
-			return // we've received a new message, let's stop looping
-		default:
-			for _, msg := range messages {
-				fmt.Printf("Rendering Message: %+v\n", msg.Message)
-
-				flipboardMsgChn <- msg
-				fmt.Println("sleeping", msg.DisplayTime)
-				time.Sleep(time.Millisecond * time.Duration(msg.DisplayTime))
-				fmt.Println("end sleeping")
-			}
-			if countdownDate != "" {
-				messages = []FlipBoardDisplayOptions{countdown()}
-			}
-		}
-	}
-}
-
-func countdown() FlipBoardDisplayOptions {
-	horizonEventTime, err := time.Parse("2006-01-02", countdownDate)
-	if err != nil {
-		fmt.Println(err)
-	}
-	t := time.Now()
-	elapsed := horizonEventTime.Sub(t)
-	days := int(elapsed.Hours() / 24)
-	hours := int(elapsed.Hours()) % 24
-	mins := int(elapsed.Minutes()) % 60
-	secs := int(elapsed.Seconds()) % 60
-	msg := FlipBoardDisplayOptions{
-		Message:     fmt.Sprintf("HORIZON EVENT\n%d:%02d:%02d:%02d", days, hours, mins, secs),
-		DisplayTime: 1000,
-		Align:       "center center",
-	}
-	return msg
-}
-
-func splitMessageAndOptions(rawMsg string) ([]FlipBoardDisplayOptions) {
-	var messages []FlipBoardDisplayOptions
-
-	playlistRegex := regexp.MustCompile(`^---\n`)
-	isPlaylist := playlistRegex.Match([]byte(rawMsg))
-	if isPlaylist == false {
-		msgAndOptions := regexp.MustCompile(`\s*--(-+)\s*`).Split(rawMsg, -1)
-		var m FlipBoardDisplayOptions
-
-		rawOptions := ""
-		if len(msgAndOptions) > 1 { // is there options?
-			rawOptions = msgAndOptions[1]
-		}
-
-		m = unmarshleOptions(rawOptions)
-		m.Message = msgAndOptions[0]
-
-		messages = append(messages, m)
-	} else {
-		rawPlaylist := playlistRegex.Split(rawMsg, -1)[1]
-
-		err := yaml.Unmarshal([]byte(rawPlaylist), &messages)
-
-		if err != nil {
-			fmt.Println("Could not unmarshal the yaml")
-			fmt.Println(err)
-		}
-	}
-
-	return messages
-}
-
-func cleanupSlackEncodedCharacters(msg string) string {
-	// replace slack tokens that are rendered to characters
-	msg = strings.Replace(msg, "&lt;", "<", -1)
-	msg = strings.Replace(msg, "&gt;", ">", -1)
-	return msg
-}
-
-func (s *FlipBoardDisplayOptions) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	type optsDefaults FlipBoardDisplayOptions
-
-	// todo, make this so that we don't have 2 defaults..
-	raw := optsDefaults{
-		DisplayTime: 5000,
-		Inverted:    false,
-		BWThreshold: 140, // magic
-		Fill:        "",
-		Align:       "center center",
-	}
-
-	if err := unmarshal(&raw); err != nil {
-		return err
-	}
-
-	raw.xAlign, raw.yAlign = getAlignOptions(raw.Align)
-
-	*s = FlipBoardDisplayOptions(raw)
-	return nil
-}
-
-func unmarshleOptions(rawOptions string) FlipBoardDisplayOptions {
-	// reset the options for each Message
-	opts := FlipBoardDisplayOptions{
-		DisplayTime: 5000,
-		Inverted:    false,
-		BWThreshold: 140, // magic
-		Fill:        "",
-		Align:       "center center",
-	}
-
-	yaml.Unmarshal([]byte(rawOptions), &opts)
-
-	return opts
-}
-
-func getAlignOptions(align string) (string, string) {
-	alignmentOptions := regexp.MustCompile("( |,)+").Split(align, -1)
-	var xAlign, yAlign string
-	xAlign = alignmentOptions[0]
-	if len(alignmentOptions) > 1 {
-		yAlign = alignmentOptions[1]
-	}
-
-	return xAlign, yAlign
-}
-
-func renderSlackUsernames(msg string, rtm *slack.RTM) string {
-	userIds := regexp.MustCompile("<@\\w+>").FindAllString(msg, -1)
-	for _, slackFmtMsgUserId := range userIds {
-		// in the Message we'll receive something like "<@U123123>", the id is actually "U123123"
-		userId := strings.Replace(strings.Replace(slackFmtMsgUserId, "<@", "", 1), ">", "", 1)
-
-		user, err := rtm.GetUserInfo(userId)
-		if err != nil {
-			name := user.Name
-			if user.Profile.FirstName != "" {
-				name = user.Profile.FirstName
-			}
-			msg = strings.Replace(msg, "<@"+user.ID+">", name, -1)
-		}
-	}
-	return msg
-}
-
-
-func respondWithHelpMsg(rtm *slack.RTM, channelId string) {
-	msg := `DM me something and I'll try to display that on the board.
-
-You can also supply options for the board by doing:
-`
-
-	msg += "```"
-	msg += `
-Your Message, 🚀, or img_url goes here.
----
-align:        # 10 5           // set position of media; horizontally or vertically
-align:        # center center  // (left,center,right)  (top,center,bottom)
-inverted:     # (true/false) invert the text or image
-bwThreshold:  # (0-256) set the threshold value for either "on" or "off"
-fill:         # ("", true/false) leave blank for autofill, or select your own fill
-`
-
-// we would like to add support for this in the future
-//kerning: 0	         // spacing between letters
-//font-size: 1           // ??
-
-	msg += "```\n\n"
-	rtm.SendMessage(rtm.NewOutgoingMessage(msg, channelId))
-}
-
-var slackEmojiLookup map[string]string
-var githubEmojiLookup github.EmojiLookup
-
-func renderSlackEmojis(msg string, rtm *slack.RTM) string {
-	var err error
-
-	if slackEmojiLookup == nil {
-		slackEmojiLookup, err = rtm.GetEmoji()
-		if err != nil {
-			log.Panicln("Could not get emojis from Slack", err)
-			return msg
-		}
-	}
-
-	emojis := regexp.MustCompile(":\\w+:").FindAllString(msg, -1)
-	for _, slackFmtMsgEmoji := range emojis {
-		// in the Message we'll receive something like ":smile:", this will actually return 😊
-		emojiName := strings.Replace(strings.Replace(slackFmtMsgEmoji, ":", "", 1), ":", "", 1)
-
-		if emojiName != "" {
-			emojiImgUrl := slackEmojiLookup[emojiName]
-
-			// follow the aliases for emojis
-			for strings.Contains(emojiImgUrl, "alias:") {
-				nextEmojiName := strings.Replace(emojiImgUrl, "alias:", "", -1)
-				emojiImgUrl = slackEmojiLookup[nextEmojiName]
-			}
-
-			if emojiImgUrl == "" {
-				emojiImgUrl = githubEmojiLookup[emojiName]
-			}
-
-			if emojiImgUrl == "" {
-				continue
-			}
-
-			msg = strings.Replace(msg, ":"+emojiName+":", emojiImgUrl, -1)
-		}
-	}
-
-	return msg
-}
-
-func findOffSets(options FlipBoardDisplayOptions, virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, int) {
+func findOffSets(options options.FlipBoardDisplayOptions, virtualBoard VirtualBoard, boardWidth, boardHeight int) (int, int) {
 	var xOffSet int
 
-	switch options.xAlign {
+	switch options.XAlign {
 	case "left":
 		xOffSet = 0
 	case "center":
@@ -839,12 +549,12 @@ func findOffSets(options FlipBoardDisplayOptions, virtualBoard VirtualBoard, boa
 	case "right":
 		xOffSet = boardWidth - len(virtualBoard[0])
 	default:
-		xOffSet, _ = strconv.Atoi(options.xAlign)
+		xOffSet, _ = strconv.Atoi(options.XAlign)
 	}
 
 	var yOffSet int
 
-	switch options.yAlign {
+	switch options.YAlign {
 	case "top":
 		// we don't do anything
 	case "center":
@@ -852,7 +562,7 @@ func findOffSets(options FlipBoardDisplayOptions, virtualBoard VirtualBoard, boa
 	case "bottom":
 		yOffSet = boardHeight - len(virtualBoard)
 	default:
-		yOffSet, _ = strconv.Atoi(options.yAlign)
+		yOffSet, _ = strconv.Atoi(options.YAlign)
 	}
 
 	return xOffSet, yOffSet
