@@ -254,13 +254,7 @@ func countdown(countdownDate string) options.FlipBoardDisplayOptions {
 
 func unmarshleOptions(rawOptions string) options.FlipBoardDisplayOptions {
 	// reset the options for each Message
-	opts := options.FlipBoardDisplayOptions{
-		DisplayTime: 5000,
-		Inverted:    false,
-		BWThreshold: 140, // magic
-		Fill:        "",
-		Align:       "center center",
-	}
+	opts := options.GetDefaultOptions()
 
 	yaml.Unmarshal([]byte(rawOptions), &opts)
 
