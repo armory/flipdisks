@@ -36,14 +36,14 @@ func TestSplitMessageAndOptions(t *testing.T) {
 
 		Expected []options.FlipBoardDisplayOptions
 	}{
-		//"simple message": {
-		//	msg: "hello",
-		//	Expected: func() []options.FlipBoardDisplayOptions {
-		//		o := options.GetDefaultOptions()
-		//		o.Message = "hello"
-		//		return []options.FlipBoardDisplayOptions{o}
-		//	}(),
-		//},
+		"simple message": {
+			msg: "hello",
+			Expected: func() []options.FlipBoardDisplayOptions {
+				o := options.GetDefaultOptions()
+				o.Message = "hello"
+				return []options.FlipBoardDisplayOptions{o}
+			}(),
+		},
 		"simple options": {
 			msg: "hello\n---\ninverted: true",
 			Expected: func() []options.FlipBoardDisplayOptions {
@@ -51,6 +51,43 @@ func TestSplitMessageAndOptions(t *testing.T) {
 				o.Message = "hello"
 				o.Inverted = true
 				return []options.FlipBoardDisplayOptions{o}
+			}(),
+		},
+		"playlist options": {
+			msg: `---
+- message: hello
+  inverted: true
+- message: world
+  bwThreshold: 33
+`,
+			Expected: func() []options.FlipBoardDisplayOptions {
+				h := options.GetDefaultOptions()
+				h.Message = "hello"
+				h.Inverted = true
+
+				w := options.GetDefaultOptions()
+				w.Message = "world"
+				w.BWThreshold = 33
+				return []options.FlipBoardDisplayOptions{h, w}
+			}(),
+		},
+		"playlist with newline in front": {
+			msg: `
+---
+- message: hello
+  inverted: true
+- message: world
+  bwThreshold: 33
+`,
+			Expected: func() []options.FlipBoardDisplayOptions {
+				h := options.GetDefaultOptions()
+				h.Message = "hello"
+				h.Inverted = true
+
+				w := options.GetDefaultOptions()
+				w.Message = "world"
+				w.BWThreshold = 33
+				return []options.FlipBoardDisplayOptions{h, w}
 			}(),
 		},
 	}
