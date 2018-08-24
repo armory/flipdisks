@@ -11,7 +11,7 @@ import (
 	"github.com/armory/flipdisks/controller/pkg/github"
 	"github.com/armory/flipdisks/controller/pkg/options"
 	"github.com/nlopes/slack"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 type Slack struct {
