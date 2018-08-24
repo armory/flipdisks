@@ -29,14 +29,17 @@ func GetDefaultOptions() FlipBoardDisplayOptions {
 }
 
 func (s *FlipBoardDisplayOptions) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	raw := GetDefaultOptions()
+	// make a copy of the type
+	type nestedOptsDefaults FlipBoardDisplayOptions
+
+	// cast the defaults to the copy of the type, otherwise it'll be circular
+	raw := nestedOptsDefaults(GetDefaultOptions())
 
 	if err := unmarshal(&raw); err != nil {
 		return err
 	}
 
-	raw.XAlign, raw.YAlign = GetAlignOptions(raw.Align)
-
+	// uncast the nested type so it's the correct type
 	*s = FlipBoardDisplayOptions(raw)
 	return nil
 }
