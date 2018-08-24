@@ -11,7 +11,7 @@ import (
 	"github.com/armory/flipdisks/controller/pkg/github"
 	"github.com/armory/flipdisks/controller/pkg/options"
 	"github.com/nlopes/slack"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 type Slack struct {
@@ -204,7 +204,7 @@ fill:         # ("", true/false) leave blank for autofill, or select your own fi
 func splitMessageAndOptions(rawMsg string) []options.FlipBoardDisplayOptions {
 	var messages []options.FlipBoardDisplayOptions
 
-	playlistRegex := regexp.MustCompile(`^---\n`)
+	playlistRegex := regexp.MustCompile(`^\n*---\n`)
 	isPlaylist := playlistRegex.Match([]byte(rawMsg))
 	if isPlaylist == false {
 		msgAndOptions := regexp.MustCompile(`\s*--(-+)\s*`).Split(rawMsg, -1)

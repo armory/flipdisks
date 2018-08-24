@@ -8,6 +8,12 @@
   version = "v1.1.0"
 
 [[projects]]
+  name = "github.com/go-test/deep"
+  packages = ["."]
+  revision = "6592d9cc0a499ad2d5f574fde80a2b5c5cc3b4f5"
+  version = "v1.0.1"
+
+[[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
@@ -35,7 +41,13 @@
   branch = "master"
   name = "github.com/kevinawoo/flipdots"
   packages = ["panel"]
-  revision = "c7bbf8cd02bcad012ffc3b0b872660b72fcf33de"
+  revision = "7803864800d90dd014e2db678f8f246eabde6712"
+
+[[projects]]
+  name = "github.com/kr/pty"
+  packages = ["."]
+  revision = "fa756f09eeb418bf1cc6268c66ceaad9bb98f598"
+  version = "v1.1.2"
 
 [[projects]]
   branch = "master"
@@ -112,6 +124,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "14eaf21b4dfae26a570edc7afba3de5b81466b8b56f4e8a8781ab2f8c6cd1abd"
+  inputs-digest = "c88bf54bf2d4c72e5c5e603887b2ecc84e4d5aebb7c0e0c0e7fde9db12bc4da1"
   solver-name = "gps-cdcl"
   solver-version = 1

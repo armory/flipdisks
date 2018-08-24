@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
+	"github.com/armory/flipdisks/controller/pkg/options"
+	"github.com/kr/pty"
 )
 
 func TestCreateVirtualBoard(t *testing.T) {
@@ -159,5 +161,102 @@ func TestCreateVirtualBoard(t *testing.T) {
 			t.Errorf("Expected\n%#v:\n%s", testCase.expect, testCase.expect)
 			t.Errorf("Got\n%#v:\n%s", got, got)
 		}
+	}
+}
+
+// These tests are only concerned with not crashing the flipboard when displaying a message
+// Todo: we should test the actual virtual board. there's a few options:
+// 	- check the cache
+// 	- check each panel's value
+//	- add a return type and check that
+func TestDisplayMessageToPanels(t *testing.T) {
+	tests := map[string]struct {
+		msg options.FlipBoardDisplayOptions
+	}{
+		"simple and autofill": {
+			msg: options.FlipBoardDisplayOptions{
+				Message: "Simple String",
+			},
+		},
+		"string with linebreak": {
+			msg: options.FlipBoardDisplayOptions{
+				Message: "Simple\nString",
+			},
+		},
+		"image url": {
+			msg: func() (options.FlipBoardDisplayOptions) {
+				o := options.GetDefaultOptions()
+				o.Message = "https://cl.ly/2r0k2I1P0d2i/Armory_logo_monochrome_shield%20(2).jpg"
+				return o
+			}(),
+		},
+		"simple string inverted and autofill": {
+			msg: options.FlipBoardDisplayOptions{
+				Message:  "Simple String",
+				Inverted: true,
+			},
+		},
+		"simple string align center center": {
+			msg: options.FlipBoardDisplayOptions{
+				Message: "Simple String",
+				Align:   "center center",
+			},
+		},
+		"simple string align left center": {
+			msg: options.FlipBoardDisplayOptions{
+				Message: "Simple String",
+				Align:   "left center",
+			},
+		},
+		"simple string align right center": {
+			msg: options.FlipBoardDisplayOptions{
+				Message: "Simple String",
+				Align:   "right center",
+			},
+		},
+		"simple string align right bottom": {
+			msg: options.FlipBoardDisplayOptions{
+				Message: "Simple String",
+				Align:   "right right",
+			},
+		},
+		"simple string fill": {
+			msg: options.FlipBoardDisplayOptions{
+				Message: "Simple String",
+				Fill:    "false",
+			},
+		},
+		"simple string autofill": {
+			msg: options.FlipBoardDisplayOptions{
+				Message: "Simple String",
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			// setup a psudo tty to use
+			_, tty, _ := pty.Open()
+			defer func() { tty.Close() }()
+
+			playlist := &Playlist{
+				PanelInfo: PanelInfo{
+					// actual panels
+					PanelWidth:  28,
+					PanelHeight: 7,
+
+					PhysicallyDisplayedWidth: 7,
+				},
+				PanelAddressesLayout: [][]int{
+					{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+					{10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
+				},
+			}
+			baudRate := 9600
+			ttyName := tty.Name()
+			panels, _ := createPanels(playlist, &ttyName, &baudRate)
+
+			DisplayMessageToPanels(test.msg, panels, playlist)
+		})
 	}
 }

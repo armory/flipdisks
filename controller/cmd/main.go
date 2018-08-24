@@ -9,7 +9,6 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
-	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -22,6 +21,7 @@ import (
 	"github.com/armory/flipdisks/controller/pkg/slackbot"
 	"github.com/kevinawoo/flipdots/panel"
 	"github.com/nfnt/resize"
+	log "github.com/sirupsen/logrus"
 )
 
 type MetadataType struct {
@@ -116,14 +116,17 @@ func main() {
 
 	g, err := github.New(github.Token(*githubToken))
 	if err != nil {
-		log.Panic("Could not create githubClient")
+		log.Error("Could not create githubClient, hopefully everything will work!")
 	}
 	githubEmojiLookup, err := g.GetEmojis()
 	if err != nil {
-		log.Panicln("Could not get emojis from Github", err)
+		log.Error("Could not get emojis from Github", err)
 	}
 
-	panels := createPanels(playlist, port, baud)
+	panels, err := createPanels(playlist, port, baud)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	msgsChan := make(chan options.FlipBoardDisplayOptions)
 
@@ -137,20 +140,24 @@ func main() {
 	}
 }
 
-func createPanels(playlist *Playlist, port *string, baud *int) [][]*panel.Panel {
+func createPanels(playlist *Playlist, port *string, baud *int) ([][]*panel.Panel, error) {
 	var panels [][]*panel.Panel
 
 	for y, row := range playlist.PanelAddressesLayout {
 		panels = append(panels, []*panel.Panel{})
 
 		for _, panelAddress := range row {
-			p := panel.NewPanel(playlist.PanelInfo.PanelWidth, playlist.PanelInfo.PanelHeight, *port, *baud)
+			p, err := panel.NewPanel(playlist.PanelInfo.PanelWidth, playlist.PanelInfo.PanelHeight, *port, *baud)
+			if err != nil {
+				return nil, err
+			}
+
 			p.Address = []byte{byte(panelAddress)}
 
 			panels[y] = append(panels[y], p)
 		}
 	}
-	return panels
+	return panels, nil
 }
 
 func DisplayMessageToPanels(msg options.FlipBoardDisplayOptions, panels [][]*panel.Panel, playlist *Playlist) {
@@ -166,8 +173,9 @@ func DisplayMessageToPanels(msg options.FlipBoardDisplayOptions, panels [][]*pan
 
 	frameIndex := 0
 	frameIndex = frameIndex
-	// if autofill, try to determine the average around the borders and use that
 	fill := msg.Fill == "true"
+
+	// if no fill is provided, let's try to set autofill
 	if msg.Fill == "" {
 		var sum int
 
@@ -250,10 +258,13 @@ func DisplayMessageToPanels(msg options.FlipBoardDisplayOptions, panels [][]*pan
 		}
 	}
 	// send our virtual panels to the physical virtualBoard
-	for _, row := range panels {
-		for _, p := range row {
+	for y, row := range panels {
+		for x, p := range row {
 			//p.PrintState()
-			p.Send()
+			err := p.Send()
+			if err != nil {
+				log.Errorf("could not send to panel (%d,%d): %s", y, x, err)
+			}
 		}
 	}
 }
@@ -304,7 +315,7 @@ func downloadImage(playlist *Playlist, imgUrl string, invertImage bool, bwThresh
 	defer resp.Body.Close()
 	m, _, err := image.Decode(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorf("couldn't download an image", err)
 	}
 	maxWidth := uint(playlist.PanelInfo.PanelHeight * len(playlist.PanelAddressesLayout[0]))
 	maxHeight := uint(playlist.PanelInfo.PanelWidth * len(playlist.PanelAddressesLayout))
