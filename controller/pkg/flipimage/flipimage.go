@@ -19,11 +19,18 @@ func Download(maxWidth, maxHeight uint, imgUrl string, invertImage bool, bwThres
 	m, _, err := image.Decode(resp.Body)
 	if err != nil {
 		log.Errorf("couldn't download an image %v", err)
+		return nil
 	}
 	defer resp.Body.Close()
-	m = resize.Thumbnail(maxWidth, maxHeight, m, resize.Lanczos3)
+
+	m = resize.Thumbnail(20, 20, m, resize.Lanczos3)
 	bounds := m.Bounds()
 	fmt.Printf("%#v \n", bounds)
+
+	return convert(m, bounds, invertImage, bwThreshold)
+}
+
+func convert(m image.Image, bounds image.Rectangle, invertImage bool, bwThreshold int) []fontmap.Row {
 	var virtualImgBoard []fontmap.Row
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		row := fontmap.Row{}
