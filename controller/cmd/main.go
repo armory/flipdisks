@@ -380,8 +380,10 @@ func createVirtualBoard(panelWidth int, numberOfPanelsWide int, msgCharsAsDots [
 
 			// find the width of dots for the word
 			wordDotWidth := 0
-			for _, dotWord := range nextDotWord {
-				wordDotWidth += len(dotWord[0])
+			for _, dotChar := range nextDotWord {
+				if len(dotChar) > 0 {
+					wordDotWidth += len(dotChar[0])
+				}
 			}
 
 			// since we're breaking on the word, we should discard all the whitespace before the word
