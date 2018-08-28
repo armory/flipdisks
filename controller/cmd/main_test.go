@@ -1,12 +1,12 @@
 package main
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/armory/flipdisks/controller/pkg/options"
 	"github.com/kr/pty"
+	"reflect"
 )
 
 func TestCreateVirtualBoard(t *testing.T) {
@@ -149,6 +149,23 @@ func TestCreateVirtualBoard(t *testing.T) {
 				{0, 1, 0, 0, 0, 0, 0, 1, 0, 0},
 				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			},
+		},
+		{
+			testDescription:    "It should only count the dotChar width if the dotChar exists",
+			panelWidth:         4, // size of "?"
+			numberOfPanelsWide: 4, // number of characters that can fit on a line
+			message:            "ū u",
+
+			expect: []fontmap.Row{
+				//█ u
+				{1, 1, 1, 0, 0, 0, 0, 0, 0},
+				{1, 1, 1, 0, 0, 1, 0, 1, 0},
+				{1, 1, 1, 0, 0, 1, 0, 1, 0},
+				{1, 1, 1, 0, 0, 1, 0, 1, 0},
+				{1, 1, 1, 0, 0, 1, 1, 1, 0},
+				{1, 1, 1, 0, 0, 0, 0, 0, 0},
+				{1, 1, 1, 0, 0, 0, 0, 0, 0},
 			},
 		},
 	}
