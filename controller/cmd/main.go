@@ -4,23 +4,17 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"image"
-	"image/color"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/armory/flipdisks/controller/pkg/flipimage"
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/armory/flipdisks/controller/pkg/github"
 	"github.com/armory/flipdisks/controller/pkg/options"
 	"github.com/armory/flipdisks/controller/pkg/slackbot"
 	"github.com/kevinawoo/flipdots/panel"
-	"github.com/nfnt/resize"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -285,7 +279,9 @@ func renderVirtualBoard(msg options.FlipBoardDisplayOptions, playlist *Playlist)
 
 	matchedUrls := regexp.MustCompile("http.?://.*.(png|jpe?g)").FindStringSubmatch(msg.Message)
 	if len(matchedUrls) > 0 {
-		virtualBoard = downloadImage(playlist, matchedUrls[0], msg.Inverted, msg.BWThreshold)
+		maxWidth := uint(playlist.PanelInfo.PanelHeight * len(playlist.PanelAddressesLayout[0]))
+		maxHeight := uint(playlist.PanelInfo.PanelWidth * len(playlist.PanelAddressesLayout))
+		virtualBoard = flipimage.Download(maxWidth, maxHeight, matchedUrls[0], msg.Inverted, msg.BWThreshold)
 	} else {
 		msgCharsAsDots := fontmap.Render(msg.Message)
 		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg.Message)
@@ -308,45 +304,6 @@ func renderVirtualBoard(msg options.FlipBoardDisplayOptions, playlist *Playlist)
 	// let's cache the result
 	virtualBoardCache[msg] = virtualBoard
 	return virtualBoard
-}
-
-func downloadImage(playlist *Playlist, imgUrl string, invertImage bool, bwThreshold int) VirtualBoard {
-	resp, err := http.Get(imgUrl)
-	defer resp.Body.Close()
-	m, _, err := image.Decode(resp.Body)
-	if err != nil {
-		log.Errorf("couldn't download an image", err)
-	}
-	maxWidth := uint(playlist.PanelInfo.PanelHeight * len(playlist.PanelAddressesLayout[0]))
-	maxHeight := uint(playlist.PanelInfo.PanelWidth * len(playlist.PanelAddressesLayout))
-	m = resize.Thumbnail(maxWidth, maxHeight, m, resize.Lanczos3)
-	bounds := m.Bounds()
-	fmt.Printf("%#v \n", bounds)
-	var virtualImgBoard VirtualBoard
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		row := fontmap.Row{}
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, _ := m.At(x, y).RGBA()
-			lum := 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
-			pixel := color.Gray{uint8(lum / 256)}
-
-			var flipdotPixelValue bool
-
-			if pixel.Y < uint8(bwThreshold) {
-				flipdotPixelValue = !invertImage
-			} else {
-				flipdotPixelValue = invertImage
-			}
-
-			if flipdotPixelValue {
-				row = append(row, 1)
-			} else {
-				row = append(row, 0)
-			}
-		}
-		virtualImgBoard = append(virtualImgBoard, row)
-	}
-	return virtualImgBoard
 }
 
 type VirtualBoard []fontmap.Row
