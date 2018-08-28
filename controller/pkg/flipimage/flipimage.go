@@ -23,7 +23,7 @@ func Download(maxWidth, maxHeight uint, imgUrl string, invertImage bool, bwThres
 	}
 	defer resp.Body.Close()
 
-	m = resize.Thumbnail(20, 20, m, resize.Lanczos3)
+	m = resize.Thumbnail(maxWidth, maxHeight, m, resize.Lanczos3)
 	bounds := m.Bounds()
 	fmt.Printf("%#v \n", bounds)
 
