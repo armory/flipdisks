@@ -1,4 +1,4 @@
-package flipimage
+package image
 
 import (
 	"fmt"
@@ -12,6 +12,7 @@ import (
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/nfnt/resize"
 	log "github.com/sirupsen/logrus"
+	"regexp"
 )
 
 func Download(maxWidth, maxHeight uint, imgUrl string, invertImage bool, bwThreshold int) []fontmap.Row {
@@ -57,3 +58,21 @@ func convert(m image.Image, bounds image.Rectangle, invertImage bool, bwThreshol
 	}
 	return virtualImgBoard
 }
+
+func IsGifUrl(url string) bool {
+	matchGifUrls := regexp.MustCompile(`^http.?://.*\.(gif)`).FindStringSubmatch(url)
+	if len(matchGifUrls) > 0 {
+		return true
+	}
+	return false
+}
+
+
+func IsPlainImageUrl(url string) bool {
+	matchImageUrls := regexp.MustCompile(`^http.?://.*\.(png|jpe?g)`).FindStringSubmatch(url)
+	if len(matchImageUrls) > 0 {
+		return true
+	}
+	return false
+}
+
