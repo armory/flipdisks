@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armory/flipdisks/controller/pkg/flipimage"
+	"github.com/armory/flipdisks/controller/pkg/image"
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/armory/flipdisks/controller/pkg/github"
 	"github.com/armory/flipdisks/controller/pkg/options"
@@ -281,7 +281,7 @@ func renderVirtualBoard(msg options.FlipBoardDisplayOptions, playlist *Playlist)
 	if len(matchedUrls) > 0 {
 		maxWidth := uint(playlist.PanelInfo.PanelHeight * len(playlist.PanelAddressesLayout[0]))
 		maxHeight := uint(playlist.PanelInfo.PanelWidth * len(playlist.PanelAddressesLayout))
-		virtualBoard = flipimage.Download(maxWidth, maxHeight, matchedUrls[0], msg.Inverted, msg.BWThreshold)
+		virtualBoard = image.Download(maxWidth, maxHeight, matchedUrls[0], msg.Inverted, msg.BWThreshold)
 	} else {
 		msgCharsAsDots := fontmap.Render(msg.Message)
 		virtualBoard = createVirtualBoard(playlist.PanelInfo.PhysicallyDisplayedWidth, len(playlist.PanelAddressesLayout[0]), msgCharsAsDots, msg.Message)

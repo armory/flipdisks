@@ -1,4 +1,4 @@
-package flipimage
+package image
 
 import (
 	"fmt"
@@ -57,3 +57,14 @@ func convert(m image.Image, bounds image.Rectangle, invertImage bool, bwThreshol
 	}
 	return virtualImgBoard
 }
+
+func IsGifUrl(url string) bool {
+	// todo
+	return false
+}
+
+func IsPlainImageUrl(url string) bool {
+	// todo
+	return false
+}
+
