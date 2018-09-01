@@ -8,11 +8,11 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"net/http"
+	"regexp"
 
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/nfnt/resize"
 	log "github.com/sirupsen/logrus"
-	"regexp"
 )
 
 func Download(maxWidth, maxHeight uint, imgUrl string, invertImage bool, bwThreshold int) []fontmap.Row {
@@ -36,16 +36,16 @@ func convert(m image.Image, bounds image.Rectangle, invertImage bool, bwThreshol
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		row := fontmap.Row{}
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			// use magic values from
+			// https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
 			r, g, b, _ := m.At(x, y).RGBA()
 			lum := 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
-			pixel := color.Gray{uint8(lum / 256)}
 
-			var flipdotPixelValue bool
+			pixel := color.Gray{Y: uint8(lum / (2 ^ 8))} // determine 8 bit gray scale
 
+			flipdotPixelValue := invertImage
 			if pixel.Y < uint8(bwThreshold) {
 				flipdotPixelValue = !invertImage
-			} else {
-				flipdotPixelValue = invertImage
 			}
 
 			if flipdotPixelValue {
