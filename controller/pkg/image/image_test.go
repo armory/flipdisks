@@ -45,7 +45,7 @@ func TestConvert(t *testing.T) {
 	}
 	bounds := img.Bounds()
 
-	v := convert(img, bounds, false, 140)
+	v := convertImgToVirtualBoard(img, bounds, false, 140)
 	if !reflect.DeepEqual(armory, v) {
 		t.Error("images are not equal")
 		t.Errorf("Got %v", v)
