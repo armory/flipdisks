@@ -52,3 +52,7 @@
 [[constraint]]
   name = "github.com/kr/pty"
   version = "1.1.2"
+
+[[constraint]]
+  name = "github.com/discordapp/lilliput"
+  version = "1.2.0"

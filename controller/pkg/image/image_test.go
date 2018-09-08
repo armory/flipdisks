@@ -8,6 +8,8 @@ import (
 
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
+	"github.com/armory/flipdisks/controller/pkg/virtualboard"
 )
 
 func TestConvert(t *testing.T) {
@@ -188,5 +190,37 @@ func TestIsGifUrl(t *testing.T) {
 			assert.True(t, IsGifUrl(test.url) == test.expected, "Failed")
 
 		})
+	}
+}
+
+func TestConvertGifFromURLToVirtualBoard(t *testing.T) {
+	gifBytes, err := ioutil.ReadFile("fixtures/fast_parrot.gif")
+	if err != nil {
+		t.Error(err)
+	}
+
+	txtBytes, err := ioutil.ReadFile("fixtures/fast_parrot.txt")
+	if err != nil {
+		t.Error(err)
+	}
+
+	gotGif, err := convertGifToVirtualBoard(gifBytes, 50, 50, false, 90)
+	if err != nil {
+		t.Error(err)
+	}
+
+	gotGifFramesTxt := ""
+	for _, frame := range gotGif.Flipboards {
+		blah := virtualboard.VirtualBoard(*frame)
+		gotGifFramesTxt += blah.String() + "\n"
+	}
+
+	// This line is useful to write it to the file
+	// ioutil.WriteFile("fixtures/fast_parrot.txt", []byte(gotGifFramesTxt), os.ModePerm)
+
+	if gotGifFramesTxt != string(txtBytes) {
+		t.Error("gif are not equal")
+		t.Errorf("Got %v", gotGifFramesTxt)
+		t.Errorf("Expected %v", txtBytes)
 	}
 }

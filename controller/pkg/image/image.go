@@ -16,6 +16,9 @@ import (
 	"time"
 	"image/gif"
 	"errors"
+	"io/ioutil"
+	"github.com/discordapp/lilliput"
+	"bytes"
 )
 
 func Download(maxWidth, maxHeight uint, imgUrl string, invertImage bool, bwThreshold int) []fontmap.Row {
@@ -67,21 +70,39 @@ type FlipboardGif struct {
 	Delay      []time.Duration
 }
 
-func ConvertGifFromURLToVirtualBoard(maxWidth, maxHeight uint, gifUrl string, invertImage bool, bwThreshold int) (*FlipboardGif, error) {
+func convertGifToVirtualBoard(raw []byte, maxWidth, maxHeight uint, invertImage bool, bwThreshold int) (*FlipboardGif, error) {
 	flipboardGif := FlipboardGif{
 		Flipboards: []*[]fontmap.Row{},
 		Delay:      []time.Duration{},
 	}
 
-	// download the image http.Get
-	r, err := http.Get(gifUrl)
+	decoder, err := lilliput.NewDecoder(raw)
+	defer decoder.Close()
 	if err != nil {
-		return &flipboardGif, errors.New("couldn't download gif: " + err.Error())
+		fmt.Println(err)
+		return &flipboardGif, errors.New("couldn't decode raw gif data" + err.Error())
 	}
 
-	// pass downloaded image to gif.DecodeAll, return *GIF
-	gif, err := gif.DecodeAll(r.Body)
-	defer r.Body.Close()
+	//resizing image
+	ops := lilliput.NewImageOps(8192) // magic size
+	defer ops.Close()
+
+	opts := &lilliput.ImageOptions{
+		FileType:             ".gif",
+		Width:                int(maxWidth),
+		Height:               int(maxHeight),
+		ResizeMethod:         lilliput.ImageOpsFit,
+		NormalizeOrientation: true,
+	}
+
+	outputImg := make([]byte, 50*1024*1024) // magic size
+	outputImg, err = ops.Transform(decoder, opts, outputImg)
+	if err != nil {
+		return &flipboardGif, errors.New("couldn't resize image: " + err.Error())
+	}
+	// pass downloaded iwmage to gif.DecodeAll, return *GIF
+	gif, err := gif.DecodeAll(bytes.NewBuffer(outputImg))
+
 	if err != nil {
 		return &flipboardGif, errors.New("couldn't decode gif: " + err.Error())
 	}
@@ -89,9 +110,9 @@ func ConvertGifFromURLToVirtualBoard(maxWidth, maxHeight uint, gifUrl string, in
 	// for each frame in a gif
 	for i, frame := range gif.Image {
 		//    resize each frame
-		rFrame := resize.Thumbnail(maxWidth, maxHeight, frame, resize.Lanczos3)
+		fmt.Println(frame.Bounds())
 		//    call convertImgToVirtualBoard() to return a flipboard
-		vBoard := convertImgToVirtualBoard(rFrame, rFrame.Bounds(), invertImage, bwThreshold)
+		vBoard := convertImgToVirtualBoard(frame, frame.Bounds(), invertImage, bwThreshold)
 		//    append to flipboardGif
 		flipboardGif.Flipboards = append(flipboardGif.Flipboards, &vBoard)
 		flipboardGif.Delay = append(flipboardGif.Delay, time.Duration(gif.Delay[i]/100)*time.Second)
@@ -99,6 +120,22 @@ func ConvertGifFromURLToVirtualBoard(maxWidth, maxHeight uint, gifUrl string, in
 	}
 
 	return &flipboardGif, nil
+}
+
+func ConvertGifFromURLToVirtualBoard(gifUrl string, maxWidth, maxHeight uint, invertImage bool, bwThreshold int) (*FlipboardGif, error) {
+	// download the image http.Get
+	r, err := http.Get(gifUrl)
+	if err != nil {
+		return &FlipboardGif{}, errors.New("couldn't download gif: " + err.Error())
+	}
+
+	raw, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		return &FlipboardGif{}, errors.New("couldn't get raw gif data: " + err.Error())
+	}
+
+	return convertGifToVirtualBoard(raw, maxWidth, maxHeight, invertImage, bwThreshold)
 }
 
 func IsGifUrl(url string) bool {
