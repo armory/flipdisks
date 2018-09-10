@@ -37,20 +37,11 @@ func NewSlack(token string, c string, g github.EmojiLookup) *Slack {
 	}
 }
 
-func (s *Slack) StartSlackListener(board *flipboard.Flipboard, flipboardMsgChn chan options.FlipboardMessageOptions) {
-	var oldStopper chan struct{}
-
+func (s *Slack) StartSlackListener(board *flipboard.Flipboard) {
 	for msg := range s.RTM.IncomingEvents {
 		switch event := msg.Data.(type) {
 		case *slack.MessageEvent:
-			// close the hold handleSlackMsg
-			if oldStopper != nil {
-				close(oldStopper)
-			}
-
-			stopper := make(chan struct{})
-			go s.handleSlackMsg(event, board, flipboardMsgChn, stopper, s.countdownDate, s.githubEmojiLookup)
-			oldStopper = stopper
+			go s.handleSlackMsg(event, board, s.countdownDate, s.githubEmojiLookup)
 
 		case *slack.InvalidAuthEvent:
 			fmt.Printf("Invalid credentials")
@@ -68,7 +59,7 @@ func (s *Slack) StartSlackListener(board *flipboard.Flipboard, flipboardMsgChn c
 	}
 }
 
-func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.Flipboard, flipboardMsgChn chan options.FlipboardMessageOptions, stopper chan struct{}, countdownDate string, githubEmojiLookup github.EmojiLookup) {
+func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.Flipboard, countdownDate string, githubEmojiLookup github.EmojiLookup) {
 	rawMsg := slackEvent.Msg.Text
 	if slackEvent.SubMessage != nil {
 		rawMsg = slackEvent.SubMessage.Text

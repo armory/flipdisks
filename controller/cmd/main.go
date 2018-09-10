@@ -7,9 +7,7 @@ import (
 
 	"github.com/armory/flipdisks/controller/pkg/flipboard"
 	"github.com/armory/flipdisks/controller/pkg/github"
-	"github.com/armory/flipdisks/controller/pkg/options"
 	"github.com/armory/flipdisks/controller/pkg/slackbot"
-	"github.com/kevinawoo/flipdots/panel"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -107,52 +105,9 @@ func main() {
 
 	slack := slackbot.NewSlack(slackToken, countdownDate, githubEmojiLookup)
 
-	msgsChan := make(chan options.FlipboardMessageOptions)
-
-	go slack.StartSlackListener(board, msgsChan)
+	go slack.StartSlackListener(board)
 
 	go flipboard.Play(board)
 
 	time.Sleep(100 * time.Hour)
-}
-
-func startVideoPlayer(playlist *Playlist, panels [][]*panel.Panel) {
-	for _, video := range playlist.Videos {
-		for {
-			for frameIndex, frame := range video.Frames {
-				for y, row := range frame {
-					panelRow := y / playlist.PanelInfo.PanelHeight
-
-					if panelRow >= len(playlist.PanelAddressesLayout) {
-						log.Printf("Warning: Frame %d row %d, exceeds specified HEIGHT %d, dropping the rest of it.", frameIndex, y, playlist.PanelInfo.PanelWidth)
-						break
-					}
-					for x, cellValue := range row {
-						panelColumn := x / playlist.PanelInfo.PanelWidth
-
-						if panelColumn >= len(playlist.PanelAddressesLayout[panelRow]) {
-							log.Printf("Warning: Frame %d cell(%d,%d) exceeds specified WIDTH %d, dropping the rest of it.", frameIndex, x, y, playlist.PanelInfo.PanelWidth)
-							break
-						}
-
-						p := panels[panelRow][panelColumn]
-						p.Set(x%playlist.PanelInfo.PanelWidth, y%playlist.PanelInfo.PanelHeight, cellValue == 1)
-					}
-				}
-
-				for y, row := range panels {
-					for x, p := range row {
-						fmt.Println(x, y, p.Address)
-						p.PrintState()
-						p.Send()
-					}
-				}
-				time.Sleep(time.Duration(video.FrameDelayMs) * time.Millisecond)
-			}
-
-			if !video.Looping {
-				break
-			}
-		}
-	}
 }
