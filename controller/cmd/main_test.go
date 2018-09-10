@@ -203,9 +203,10 @@ func TestDisplayMessageToPanels(t *testing.T) {
 			},
 		},
 		"image url": {
-			msg: func() (options.FlipboardMessageOptions) {
+			msg: func() options.FlipboardMessageOptions {
 				o := options.GetDefaultOptions()
 				o.Message = "https://cl.ly/2r0k2I1P0d2i/Armory_logo_monochrome_shield%20(2).jpg"
+				o.DisplayTime = 1
 				return o
 			}(),
 		},
@@ -258,24 +259,21 @@ func TestDisplayMessageToPanels(t *testing.T) {
 			_, tty, _ := pty.Open()
 			defer func() { tty.Close() }()
 
-			playlist := &Playlist{
-				PanelInfo: PanelInfo{
-					// actual panels
-					PanelWidth:  28,
-					PanelHeight: 7,
-
-					PhysicallyDisplayedWidth: 7,
-				},
-				PanelAddressesLayout: [][]int{
-					{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-					{10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
-				},
+			panelInfo := flipboard.PanelInfo{
+				Baud:                     9600,
+				Port:                     tty.Name(),
+				PanelWidth:               28,
+				PanelHeight:              7,
+				PhysicallyDisplayedWidth: 7,
 			}
-			baudRate := 9600
-			ttyName := tty.Name()
-			panels, _ := createPanels(playlist, &ttyName, &baudRate)
 
-			flipboard.DisplayMessageToPanels(test.msg, panels, playlist)
+			panelLayout := [][]flipboard.PanelAddress{
+				{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+				{10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
+			}
+
+			board, _ := flipboard.NewFlipboard(panelInfo, panelLayout)
+			flipboard.DisplayMessageToPanels(board, &test.msg)
 		})
 	}
 }

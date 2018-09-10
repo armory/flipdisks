@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"time"
@@ -64,36 +63,6 @@ var countdownDate string
 func main() {
 	log.Print("Starting flipdisk controller")
 
-	playlist := &Playlist{
-		Name:     "demo",
-		Location: "armorywall",
-		PanelInfo: PanelInfo{
-			// actual panels
-			PanelWidth:  28,
-			PanelHeight: 7,
-
-			PhysicallyDisplayedWidth: 7,
-		},
-		PanelAddressesLayout: [][]int{
-			// actual layouts
-			{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-			{10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
-		},
-		Videos: []FlipdiskVideo{
-			{
-				Name:         "on off",
-				Looping:      true,
-				FPS:          1,
-				SetNullTo:    0,
-				FrameDelayMs: 1000,
-				Frames:       []Board{{}},
-			},
-		},
-	}
-
-	playlistJson, _ := json.Marshal(playlist)
-	playlistJson = playlistJson
-
 	port := flag.String("p", "/dev/tty.SLAB_USBtoUART", "the serial port, empty string to simulate")
 	baud := flag.Int("b", 9600, "baud rate of port")
 
@@ -112,16 +81,13 @@ func main() {
 		log.Error("Could not get emojis from Github", err)
 	}
 
-	physicalPanels, err := createPanels(playlist, port, baud)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// currently we're only supporting uniform panels, oriented the same way
 	panelInfo := flipboard.PanelInfo{
 		PanelWidth:               28,
 		PanelHeight:              7,
 		PhysicallyDisplayedWidth: 7,
+		Port: *port,
+		Baud: *baud,
 	}
 
 	panelLayout := [][]flipboard.PanelAddress{
@@ -134,7 +100,10 @@ func main() {
 		flipboardOpts = append(flipboardOpts, flipboard.CountdownDate(countdownDate))
 	}
 
-	board := flipboard.NewFlipboard(physicalPanels, panelInfo, panelLayout, flipboardOpts...)
+	board, err := flipboard.NewFlipboard(panelInfo, panelLayout, flipboardOpts...)
+	if err != nil {
+		log.Fatal("couldn't create flipboard: " + err.Error())
+	}
 
 	slack := slackbot.NewSlack(slackToken, countdownDate, githubEmojiLookup)
 
@@ -145,27 +114,6 @@ func main() {
 	go flipboard.Play(board)
 
 	time.Sleep(100 * time.Hour)
-}
-
-
-func createPanels(playlist *Playlist, port *string, baud *int) (*[][]panel.Panel, error) {
-	var panels [][]panel.Panel
-
-	for y, row := range playlist.PanelAddressesLayout {
-		panels = append(panels, []panel.Panel{})
-
-		for _, panelAddress := range row {
-			p, err := panel.NewPanel(playlist.PanelInfo.PanelWidth, playlist.PanelInfo.PanelHeight, *port, *baud)
-			if err != nil {
-				return nil, err
-			}
-
-			p.Address = []byte{byte(panelAddress)}
-
-			panels[y] = append(panels[y], *p)
-		}
-	}
-	return &panels, nil
 }
 
 func startVideoPlayer(playlist *Playlist, panels [][]*panel.Panel) {
@@ -208,4 +156,3 @@ func startVideoPlayer(playlist *Playlist, panels [][]*panel.Panel) {
 		}
 	}
 }
-

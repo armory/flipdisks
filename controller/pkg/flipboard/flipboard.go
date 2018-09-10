@@ -14,8 +14,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type PanelAddress int
-
 type Flipboard struct {
 	panels               *[][]panel.Panel
 	PanelInfo            PanelInfo
@@ -26,15 +24,14 @@ type Flipboard struct {
 	msgCurrentlyPlaying  bool
 }
 
-type PanelInfo struct {
-	PanelHeight              int
-	PanelWidth               int
-	PhysicallyDisplayedWidth int
-}
-
 type Opts func(*Flipboard) error
 
-func NewFlipboard(panels *[][]panel.Panel, info PanelInfo, layout [][]PanelAddress, opts ...Opts) *Flipboard {
+func NewFlipboard(info PanelInfo, layout [][]PanelAddress, opts ...Opts) (*Flipboard, error) {
+	panels, err := CreatePanels(info, layout)
+	if err != nil {
+		return &Flipboard{}, errors.New("couldn't create panels: " + err.Error())
+	}
+
 	board := Flipboard{
 		panels:               panels,
 		PanelInfo:            info,
@@ -49,7 +46,7 @@ func NewFlipboard(panels *[][]panel.Panel, info PanelInfo, layout [][]PanelAddre
 		}
 	}
 
-	return &board
+	return &board, nil
 }
 
 func CountdownDate(date string) Opts {
@@ -105,102 +102,6 @@ func Play(board *Flipboard) {
 			time.Sleep(time.Millisecond * time.Duration(msg.DisplayTime))
 			fmt.Println("Done! Listening for next message...")
 			board.msgCurrentlyPlaying = false
-		}
-	}
-}
-
-func (b *Flipboard) DebugPanelAddressByGoingInOrder() {
-	// clear all boards
-	for _, row := range *b.panels {
-		for _, p := range row {
-			p.Clear(false)
-			p.Send()
-		}
-	}
-
-	dotState := false
-	for {
-		select {
-		case <-b.newMessage:
-			// got a new message, stop debugging
-			go func() { b.newMessage <- true }() // let the play function know to continue again
-			return
-		default:
-			dotState = !dotState
-
-			for y, row := range *b.panels {
-				for x, p := range row {
-					x = x
-					y = y
-					//if p.Address[0] == byte(1) {
-					//fmt.Println(x, y, p.Address, dotState)
-					p.Clear(dotState)
-					p.Send()
-					time.Sleep(time.Duration(250) * time.Millisecond)
-					//}
-					//p.Send()
-				}
-			}
-		}
-	}
-}
-
-func (b *Flipboard) DebugSinglePanel(address int) {
-	// clear all boards
-	for _, row := range *b.panels {
-		for _, p := range row {
-			p.Clear(false)
-			p.Send()
-		}
-	}
-
-	dotState := false
-	for {
-		select {
-		case <-b.newMessage:
-			// got a new message, stop debugging
-			go func() { b.newMessage <- true }() // let the play function know to continue again
-			return
-		default:
-			dotState = !dotState
-
-			for y, row := range *b.panels {
-				for x, p := range row {
-					x = x
-					y = y
-					if p.Address[0] == byte(address) {
-						fmt.Println(x, y, p.Address, dotState)
-						p.Clear(dotState)
-						p.Send()
-						time.Sleep(time.Duration(500) * time.Millisecond)
-					}
-				}
-			}
-		}
-	}
-}
-
-func (b *Flipboard) SetAll(val bool) {
-	for _, row := range *b.panels {
-		for _, p := range row {
-			p.Clear(val)
-		}
-	}
-}
-
-func (b *Flipboard) GetPanel(x, y int) (*panel.Panel) {
-	panels := *b.panels
-	return &panels[x][y]
-}
-
-func (b *Flipboard) Send() () {
-	for y, row := range *b.panels {
-		for x, p := range row {
-			//p.PrintState()
-			err := p.Send()
-			if err != nil {
-				log.Errorf("could not send to panel (%d,%d): %s", y, x, err)
-			}
 		}
 	}
 }
