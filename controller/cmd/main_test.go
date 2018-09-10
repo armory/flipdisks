@@ -251,6 +251,14 @@ func TestDisplayMessageToPanels(t *testing.T) {
 				Message: "Simple String",
 			},
 		},
+		"gif url": {
+			msg: func() options.FlipboardMessageOptions {
+				o := options.GetDefaultOptions()
+				o.Message = "https://emojis.slackmojis.com/emojis/images/1471119456/981/fast_parrot.gif?1471119456"
+				o.DisplayTime = 0
+				return o
+			}(),
+		},
 	}
 
 	for name, test := range tests {
