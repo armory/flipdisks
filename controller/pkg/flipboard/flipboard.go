@@ -264,7 +264,7 @@ func displayVirtualBoardToPhysicalBoard(msg *options.FlipboardMessageOptions, vB
 	// set alignment options
 	msg.XAlign, msg.YAlign = options.GetAlignOptions(msg.Align)
 
-	printBoard(virtualBoard)
+	fmt.Println(virtualBoard)
 
 	// the library flipped height and width by accident, we'll work around it
 	panelWidth := board.PanelInfo.PanelHeight
@@ -344,20 +344,6 @@ func setPhysicalBoardFill(msg *options.FlipboardMessageOptions, virtualBoard vir
 	}
 	// set the fill value
 	board.SetAll(fill)
-}
-
-func printBoard(board virtualboard.VirtualBoard) {
-	for x := 0; x < len(board); x++ {
-		line := ""
-		for y := 0; y < len(board[x]); y++ {
-			if board[x][y] == 1 {
-				line += "⚫️"
-			} else {
-				line += "⚪️"
-			}
-		}
-		log.Println(line)
-	}
 }
 
 func findOffSets(options *options.FlipboardMessageOptions, vBoardPointer *virtualboard.VirtualBoard, boardWidth, boardHeight int) (int, int) {
