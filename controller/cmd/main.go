@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"time"
+	"sync"
 
 	"github.com/armory/flipdisks/controller/pkg/flipboard"
 	"github.com/armory/flipdisks/controller/pkg/github"
@@ -109,5 +109,8 @@ func main() {
 
 	go flipboard.Play(board)
 
-	time.Sleep(100 * time.Hour)
+	// we're actually going to just block forever so the program stays alive
+	var wg sync.WaitGroup
+	wg.Add(1)
+	wg.Wait()
 }
