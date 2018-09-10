@@ -2,41 +2,17 @@ package image
 
 import (
 	"image"
+	"io/ioutil"
 	"os"
-	"reflect"
 	"testing"
 
-	"github.com/armory/flipdisks/controller/pkg/fontmap"
-	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"github.com/armory/flipdisks/controller/pkg/virtualboard"
+	"github.com/go-test/deep"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConvert(t *testing.T) {
-	armory := []fontmap.Row{
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0},
-		{0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-		{0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-		{0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-		{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0},
-		{0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0},
-		{0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-		{0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0},
-		{0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-		{0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-		{0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	}
-
-	f, err := os.Open("armory.jpg")
+	f, err := os.Open("test_fixtures/armory.jpg")
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,10 +24,16 @@ func TestConvert(t *testing.T) {
 	bounds := img.Bounds()
 
 	v := convertImgToVirtualBoard(img, bounds, false, 140)
-	if !reflect.DeepEqual(armory, v) {
+
+	expected, err := ioutil.ReadFile("test_fixtures/armory_virtualboard.txt")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if (*v).String() != string(expected) {
 		t.Error("images are not equal")
-		t.Errorf("Got %v", v)
-		t.Errorf("Expected %v", armory)
+		t.Errorf("Expected\n%s", expected)
+		t.Errorf("Got\n%s", *v)
 	}
 }
 
@@ -142,64 +124,68 @@ func TestIsGifUrl(t *testing.T) {
 	tests := map[string]struct {
 		url string
 
-		expected bool
+		gifUrls []string
 	}{
 		".gif": {
-			url:      "http://www.blah.com/doge.gif",
-			expected: true,
+			url:     "please display this: http://www.blah.com/doge.gif",
+			gifUrls: []string{"http://www.blah.com/doge.gif"},
 		},
 		"https .gif": {
-			url:      "https://www.blah.com/cats.gif",
-			expected: true,
+			url:     "https://www.blah.com/cats.gif",
+			gifUrls: []string{"https://www.blah.com/cats.gif"},
 		},
 		"gif in url path should not match, only if it's a file extension": {
-			url:      "https://www.blah.com/cats/gif",
-			expected: false,
+			url:     "https://www.blah.com/cats/gif",
+			gifUrls: nil,
 		},
 		"should be able to handle anchors": {
-			url:      "https://www.blah.com/cats.gif#blah",
-			expected: true,
+			url:     "https://www.blah.com/cats.gif#blah",
+			gifUrls: []string{"https://www.blah.com/cats.gif#blah"},
 		},
 		"should be able to handle query params": {
-			url:      "https://www.blah.com/cats.gif?one=1",
-			expected: true,
+			url:     "https://www.blah.com/cats.gif?one=1",
+			gifUrls: []string{"https://www.blah.com/cats.gif?one=1"},
 		},
 		".png": {
-			url:      "http://www.blah.com/ballon.png",
-			expected: false,
+			url:     "http://www.blah.com/ballon.png",
+			gifUrls: nil,
 		},
 		".jpg": {
-			url:      "https://www.blah.com/doge.jpg",
-			expected: false,
+			url:     "https://www.blah.com/doge.jpg",
+			gifUrls: nil,
 		},
 		".jpeg": {
-			url:      "https://www.blah.com/doge.jpeg",
-			expected: false,
+			url:     "https://www.blah.com/doge.jpeg",
+			gifUrls: nil,
 		},
 		".txt": {
-			url:      "https://www.blah.com/names.txt",
-			expected: false,
+			url:     "https://www.blah.com/names.txt",
+			gifUrls: nil,
 		},
 		"no extension": {
-			url:      "http://www.blah.com",
-			expected: false,
+			url:     "http://www.blah.com",
+			gifUrls: nil,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			assert.True(t, IsGifUrl(test.url) == test.expected, "Failed")
+			gifUrls := GetGifUrl(test.url)
+			diffs := deep.Equal(gifUrls, test.gifUrls)
 
+			for _, diff := range diffs {
+				t.Errorf(`Test "%s" failed with: %s`, name, diff)
+			}
 		})
 	}
 }
 
 func TestConvertGifFromURLToVirtualBoard(t *testing.T) {
-	gifBytes, err := ioutil.ReadFile("fixtures/fast_parrot.gif")
+	gifBytes, err := ioutil.ReadFile("test_fixtures/fast_parrot.gif")
 	if err != nil {
 		t.Error(err)
 	}
 
-	txtBytes, err := ioutil.ReadFile("fixtures/fast_parrot.txt")
+	txtBytes, err := ioutil.ReadFile("test_fixtures/fast_parrot_virtualboard.txt")
 	if err != nil {
 		t.Error(err)
 	}
@@ -215,12 +201,12 @@ func TestConvertGifFromURLToVirtualBoard(t *testing.T) {
 		gotGifFramesTxt += blah.String() + "\n"
 	}
 
-	// This line is useful to write it to the file
-	// ioutil.WriteFile("fixtures/fast_parrot.txt", []byte(gotGifFramesTxt), os.ModePerm)
+	// Uncomment this line to write gif to txt
+	// ioutil.WriteFile("test_fixtures/fast_parrot_virtualboard.txt", []byte(gotGifFramesTxt), os.ModePerm)
 
 	if gotGifFramesTxt != string(txtBytes) {
 		t.Error("gif are not equal")
-		t.Errorf("Got %v", gotGifFramesTxt)
-		t.Errorf("Expected %v", txtBytes)
+		t.Errorf("Expected\n%s", txtBytes)
+		t.Errorf("Got\n%s", gotGifFramesTxt)
 	}
 }

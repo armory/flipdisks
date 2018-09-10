@@ -1,4 +1,4 @@
-package test_gif
+package main
 
 import (
 	"github.com/armory/flipdisks/controller/pkg/image"

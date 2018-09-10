@@ -1,12 +1,14 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 
+	"github.com/armory/flipdisks/controller/pkg/flipboard"
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/armory/flipdisks/controller/pkg/options"
+	"github.com/armory/flipdisks/controller/pkg/virtualboard"
 	"github.com/kr/pty"
-	"reflect"
 )
 
 func TestCreateVirtualBoard(t *testing.T) {
@@ -15,7 +17,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 		panelWidth, numberOfPanelsWide int
 		message                        string
 
-		expect VirtualBoard
+		expect virtualboard.VirtualBoard
 	}{
 		{
 			testDescription:    "It should print out a simple Message",
@@ -172,7 +174,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 
 	for index, testCase := range tests {
 		msgAsDots := fontmap.Render(testCase.message)
-		got := createVirtualBoard(testCase.panelWidth, testCase.numberOfPanelsWide, msgAsDots, testCase.message)
+		got := flipboard.CreateVirtualBoard(testCase.panelWidth, testCase.numberOfPanelsWide, msgAsDots, testCase.message)
 		if !reflect.DeepEqual(testCase.expect, got) {
 			t.Errorf("Test %d", index)
 			t.Errorf("Expected\n%#v:\n%s", testCase.expect, testCase.expect)
@@ -188,63 +190,63 @@ func TestCreateVirtualBoard(t *testing.T) {
 //	- add a return type and check that
 func TestDisplayMessageToPanels(t *testing.T) {
 	tests := map[string]struct {
-		msg options.FlipBoardDisplayOptions
+		msg options.FlipboardMessageOptions
 	}{
 		"simple and autofill": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 			},
 		},
 		"string with linebreak": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple\nString",
 			},
 		},
 		"image url": {
-			msg: func() (options.FlipBoardDisplayOptions) {
+			msg: func() (options.FlipboardMessageOptions) {
 				o := options.GetDefaultOptions()
 				o.Message = "https://cl.ly/2r0k2I1P0d2i/Armory_logo_monochrome_shield%20(2).jpg"
 				return o
 			}(),
 		},
 		"simple string inverted and autofill": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message:  "Simple String",
 				Inverted: true,
 			},
 		},
 		"simple string align center center": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 				Align:   "center center",
 			},
 		},
 		"simple string align left center": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 				Align:   "left center",
 			},
 		},
 		"simple string align right center": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 				Align:   "right center",
 			},
 		},
 		"simple string align right bottom": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 				Align:   "right right",
 			},
 		},
 		"simple string fill": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 				Fill:    "false",
 			},
 		},
 		"simple string autofill": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 			},
 		},
@@ -273,7 +275,7 @@ func TestDisplayMessageToPanels(t *testing.T) {
 			ttyName := tty.Name()
 			panels, _ := createPanels(playlist, &ttyName, &baudRate)
 
-			DisplayMessageToPanels(test.msg, panels, playlist)
+			flipboard.DisplayMessageToPanels(test.msg, panels, playlist)
 		})
 	}
 }

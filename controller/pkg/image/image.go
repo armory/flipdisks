@@ -1,27 +1,28 @@
 package image
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
+	"image/gif"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io/ioutil"
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
+	"github.com/armory/flipdisks/controller/pkg/virtualboard"
+	"github.com/discordapp/lilliput"
 	"github.com/nfnt/resize"
 	log "github.com/sirupsen/logrus"
-	"time"
-	"image/gif"
-	"errors"
-	"io/ioutil"
-	"github.com/discordapp/lilliput"
-	"bytes"
 )
 
-func Download(maxWidth, maxHeight uint, imgUrl string, invertImage bool, bwThreshold int) []fontmap.Row {
+func ConvertImageUrlToVirtualBoard(maxWidth, maxHeight uint, imgUrl string, invertImage bool, bwThreshold int) *virtualboard.VirtualBoard {
 	resp, err := http.Get(imgUrl)
 	img, _, err := image.Decode(resp.Body)
 	if err != nil {
@@ -37,17 +38,17 @@ func Download(maxWidth, maxHeight uint, imgUrl string, invertImage bool, bwThres
 	return convertImgToVirtualBoard(img, bounds, invertImage, bwThreshold)
 }
 
-func convertImgToVirtualBoard(m image.Image, bounds image.Rectangle, invertImage bool, bwThreshold int) []fontmap.Row {
-	var virtualImgBoard []fontmap.Row
+func convertImgToVirtualBoard(m image.Image, bounds image.Rectangle, invertImage bool, bwThreshold int) *virtualboard.VirtualBoard {
+	var board []fontmap.Row
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		row := fontmap.Row{}
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			// use magic values from
-			// https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
 			r, g, b, _ := m.At(x, y).RGBA()
+			// to get luminosity, we're going to use magic values from
+			// https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
 			lum := 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
 
-			pixel := color.Gray{Y: uint8(lum / (2 ^ 8))} // determine 8 bit gray scale
+			pixel := color.Gray{Y: uint8(lum / 256)} // determine 8 bit gray scale
 
 			flipdotPixelValue := invertImage
 			if pixel.Y < uint8(bwThreshold) {
@@ -60,19 +61,21 @@ func convertImgToVirtualBoard(m image.Image, bounds image.Rectangle, invertImage
 				row = append(row, 0)
 			}
 		}
-		virtualImgBoard = append(virtualImgBoard, row)
+		board = append(board, row)
 	}
-	return virtualImgBoard
+
+	v := virtualboard.VirtualBoard(board)
+	return &v
 }
 
 type FlipboardGif struct {
-	Flipboards []*[]fontmap.Row
+	Flipboards []*virtualboard.VirtualBoard
 	Delay      []time.Duration
 }
 
 func convertGifToVirtualBoard(raw []byte, maxWidth, maxHeight uint, invertImage bool, bwThreshold int) (*FlipboardGif, error) {
 	flipboardGif := FlipboardGif{
-		Flipboards: []*[]fontmap.Row{},
+		Flipboards: []*virtualboard.VirtualBoard{},
 		Delay:      []time.Duration{},
 	}
 
@@ -100,23 +103,19 @@ func convertGifToVirtualBoard(raw []byte, maxWidth, maxHeight uint, invertImage 
 	if err != nil {
 		return &flipboardGif, errors.New("couldn't resize image: " + err.Error())
 	}
-	// pass downloaded iwmage to gif.DecodeAll, return *GIF
-	gif, err := gif.DecodeAll(bytes.NewBuffer(outputImg))
 
+	// pass downloaded image to gif.DecodeAll, return *GIF
+	g, err := gif.DecodeAll(bytes.NewBuffer(outputImg))
 	if err != nil {
 		return &flipboardGif, errors.New("couldn't decode gif: " + err.Error())
 	}
 
-	// for each frame in a gif
-	for i, frame := range gif.Image {
-		//    resize each frame
-		fmt.Println(frame.Bounds())
-		//    call convertImgToVirtualBoard() to return a flipboard
+	for i, frame := range g.Image {
 		vBoard := convertImgToVirtualBoard(frame, frame.Bounds(), invertImage, bwThreshold)
-		//    append to flipboardGif
-		flipboardGif.Flipboards = append(flipboardGif.Flipboards, &vBoard)
-		flipboardGif.Delay = append(flipboardGif.Delay, time.Duration(gif.Delay[i]/100)*time.Second)
+		flipboardGif.Flipboards = append(flipboardGif.Flipboards, vBoard)
 
+		// gif time duration is 100th of a second, instead, lets convert it to a time.Duration so it's easier to understand
+		flipboardGif.Delay = append(flipboardGif.Delay, time.Duration(g.Delay[i]/100)*time.Second)
 	}
 
 	return &flipboardGif, nil
@@ -138,17 +137,24 @@ func ConvertGifFromURLToVirtualBoard(gifUrl string, maxWidth, maxHeight uint, in
 	return convertGifToVirtualBoard(raw, maxWidth, maxHeight, invertImage, bwThreshold)
 }
 
-func IsGifUrl(url string) bool {
-	matchGifUrls := regexp.MustCompile(`^http.?://.*\.(gif)`).FindStringSubmatch(url)
-	if len(matchGifUrls) > 0 {
-		return true
+// GetGifUrl given a message, it'll return an array of gif string urls
+func GetGifUrl(url string) []string {
+	matched := regexp.MustCompile(`https?://.*\.gif(?:(\\?)\S+)?(?:#\S+)?`).FindStringSubmatch(url)
+
+	// we really don't care about the empty ones
+	urls := matched[:0]
+	for _, x := range matched {
+		if x != "" {
+			urls = append(urls, x)
+		}
 	}
-	return false
+
+	return urls
 }
 
 
 func IsPlainImageUrl(url string) bool {
-	matchImageUrls := regexp.MustCompile(`^http.?://.*\.(png|jpe?g)`).FindStringSubmatch(url)
+	matchImageUrls := regexp.MustCompile(`^http.?://.*\.(?:png|jpe?g)(?:(\\?)\S+)?(?:#\S+)?`).FindStringSubmatch(url)
 	if len(matchImageUrls) > 0 {
 		return true
 	}
