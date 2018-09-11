@@ -11,9 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var githubToken *string
-var countdownDate string
-
 func main() {
 	log.Print("Starting flipdisk controller")
 
@@ -22,11 +19,15 @@ func main() {
 
 	var slackToken string
 	flag.StringVar(&slackToken, "slack-token", "", "Go get a slack token")
-	githubToken = flag.String("github-token", "", "Go get a github token")
+
+	var githubToken string
+	flag.StringVar(&githubToken, "github-token", "", "Go get a github token")
+
+	var countdownDate string
 	flag.StringVar(&countdownDate, "countdown", "", fmt.Sprintf("Specify the countdown date in YYYY-MM-DD format"))
 	flag.Parse()
 
-	g, err := github.New(github.Token(*githubToken))
+	g, err := github.New(github.Token(githubToken))
 	if err != nil {
 		log.Error("Could not create githubClient, hopefully everything will work!")
 	}
