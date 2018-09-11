@@ -11,50 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type MetadataType struct {
-	TallerCharacters map[string]int `json:"tallerCharacters"`
-	AverageHeight    int            `json:"averageHeight"`
-	AverageWidth     int            `json:"averageWidth"`
-}
-
-type Row []int
-type Letter []Row
-type CharmapType map[string]Letter
-
-type Font struct {
-	Name     string       `json:"name"`
-	Metadata MetadataType `json:"metadata"`
-	Charmap  CharmapType  `json:"charmap"`
-}
-
-type Board []Row
-type Frame map[string]Board
-
-type FlipdiskVideo struct {
-	Name         string
-	FPS          int        `json:"fps"` // how do we go lower?
-	Looping      bool       `json:"looping"`
-	Layout       [][]string `json:"layout"`
-	Frames       []Board    `json:"frames"`
-	SetNullTo    int
-	FrameDelayMs int
-}
-
-type PanelInfo struct {
-	PanelHeight              int
-	PanelWidth               int
-	PhysicallyDisplayedWidth int
-}
-
-type Playlist struct {
-	Location             string          `json:"location"`
-	Name                 string          `json:"name"`
-	Videos               []FlipdiskVideo `json:"videos"`
-	Looping              bool            `json:"looping"`
-	PanelInfo            PanelInfo
-	PanelAddressesLayout [][]int
-}
-
 var githubToken *string
 var countdownDate string
 
