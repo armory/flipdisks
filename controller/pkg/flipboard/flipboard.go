@@ -1,6 +1,7 @@
 package flipboard
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/armory/flipdisks/controller/pkg/options"
 	"github.com/armory/flipdisks/controller/pkg/virtualboard"
 	"github.com/kevinawoo/flipdots/panel"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
