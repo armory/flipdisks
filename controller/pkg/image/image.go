@@ -17,7 +17,6 @@ import (
 
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/armory/flipdisks/controller/pkg/virtualboard"
-	"github.com/discordapp/lilliput"
 	"github.com/nfnt/resize"
 	log "github.com/sirupsen/logrus"
 )
@@ -79,33 +78,7 @@ func convertGifToVirtualBoard(raw []byte, maxWidth, maxHeight uint, invertImage 
 		Delay:      []time.Duration{},
 	}
 
-	decoder, err := lilliput.NewDecoder(raw)
-	defer decoder.Close()
-	if err != nil {
-		fmt.Println(err)
-		return &flipboardGif, errors.New("couldn't decode raw gif data" + err.Error())
-	}
-
-	//resizing image
-	ops := lilliput.NewImageOps(8192) // magic size
-	defer ops.Close()
-
-	opts := &lilliput.ImageOptions{
-		FileType:             ".gif",
-		Width:                int(maxWidth),
-		Height:               int(maxHeight),
-		ResizeMethod:         lilliput.ImageOpsFit,
-		NormalizeOrientation: true,
-	}
-
-	outputImg := make([]byte, 50*1024*1024) // magic size
-	outputImg, err = ops.Transform(decoder, opts, outputImg)
-	if err != nil {
-		return &flipboardGif, errors.New("couldn't resize image: " + err.Error())
-	}
-
-	// pass downloaded image to gif.DecodeAll, return *GIF
-	g, err := gif.DecodeAll(bytes.NewBuffer(outputImg))
+	g, err := gif.DecodeAll(bytes.NewBuffer(raw))
 	if err != nil {
 		return &flipboardGif, errors.New("couldn't decode gif: " + err.Error())
 	}
@@ -152,7 +125,6 @@ func GetGifUrl(url string) []string {
 	return urls
 }
 
-
 func IsPlainImageUrl(url string) bool {
 	matchImageUrls := regexp.MustCompile(`^http.?://.*\.(?:png|jpe?g)(?:(\\?)\S+)?(?:#\S+)?`).FindStringSubmatch(url)
 	if len(matchImageUrls) > 0 {
@@ -160,4 +132,3 @@ func IsPlainImageUrl(url string) bool {
 	}
 	return false
 }
-
