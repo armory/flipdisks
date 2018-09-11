@@ -2,5 +2,8 @@
 
 cd "$(dirname "$0")"/..
 
-rm -rf controller/build/ || true  # remove the old build
-GOOS=linux GOARCH=arm GOARM=7 go build -o controller/build/main controller/cmd/main.go
+cd controller
+rm -rf build/ || true  # remove the old build
+
+dep ensure
+GOOS=linux GOARCH=arm GOARM=7 go build -o build/main cmd/main.go
