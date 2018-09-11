@@ -103,7 +103,7 @@ func main() {
 		log.Fatal("couldn't create flipboard: " + err.Error())
 	}
 
-	slack := slackbot.NewSlack(slackToken, countdownDate, githubEmojiLookup)
+	slack := slackbot.NewSlack(slackToken, githubEmojiLookup)
 
 	go slack.StartSlackListener(board)
 

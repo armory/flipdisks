@@ -15,12 +15,11 @@ import (
 
 type Slack struct {
 	token             string
-	countdownDate     string
 	githubEmojiLookup github.EmojiLookup
 	RTM               *slack.RTM
 }
 
-func NewSlack(token string, c string, g github.EmojiLookup) *Slack {
+func NewSlack(token string, g github.EmojiLookup) *Slack {
 	api := slack.New(token)
 	logger := log.New(os.Stdout, "slack-bot: ", log.Lshortfile|log.LstdFlags)
 	slack.SetLogger(logger)
@@ -31,7 +30,6 @@ func NewSlack(token string, c string, g github.EmojiLookup) *Slack {
 
 	return &Slack{
 		token:             token,
-		countdownDate:     c,
 		githubEmojiLookup: g,
 		RTM:               rtm,
 	}
@@ -41,7 +39,7 @@ func (s *Slack) StartSlackListener(board *flipboard.Flipboard) {
 	for msg := range s.RTM.IncomingEvents {
 		switch event := msg.Data.(type) {
 		case *slack.MessageEvent:
-			go s.handleSlackMsg(event, board, s.countdownDate, s.githubEmojiLookup)
+			go s.handleSlackMsg(event, board)
 
 		case *slack.InvalidAuthEvent:
 			fmt.Printf("Invalid credentials")
@@ -59,7 +57,7 @@ func (s *Slack) StartSlackListener(board *flipboard.Flipboard) {
 	}
 }
 
-func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.Flipboard, countdownDate string, githubEmojiLookup github.EmojiLookup) {
+func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.Flipboard) {
 	rawMsg := slackEvent.Msg.Text
 	if slackEvent.SubMessage != nil {
 		rawMsg = slackEvent.SubMessage.Text
@@ -80,7 +78,7 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 
 		msg.Message = s.renderSlackUsernames(msg.Message)
 		msg.Message = cleanupSlackEncodedCharacters(msg.Message)
-		msg.Message = s.renderSlackEmojis(msg.Message, githubEmojiLookup)
+		msg.Message = s.renderSlackEmojis(msg.Message)
 
 		board.Enqueue(&msg)
 	}
@@ -113,7 +111,7 @@ func (s *Slack) renderSlackUsernames(msg string) string {
 
 var slackEmojiLookup map[string]string
 
-func (s *Slack) renderSlackEmojis(msg string, githubEmojiLookup github.EmojiLookup) string {
+func (s *Slack) renderSlackEmojis(msg string) string {
 	var err error
 
 	if slackEmojiLookup == nil {
@@ -139,7 +137,7 @@ func (s *Slack) renderSlackEmojis(msg string, githubEmojiLookup github.EmojiLook
 			}
 
 			if emojiImgUrl == "" {
-				emojiImgUrl = githubEmojiLookup[emojiName]
+				emojiImgUrl = s.githubEmojiLookup[emojiName]
 			}
 
 			if emojiImgUrl == "" {
