@@ -136,7 +136,10 @@ func DisplayMessageToPanels(board *Flipboard, msg *options.FlipboardMessageOptio
 			fmt.Println("Got gif! rendering...")
 
 			msg.DisplayTime = 0 // we'll be controlling the frame display time
-			frames, _ := image.ConvertGifFromURLToVirtualBoard(gifUrl, maxWidth, maxHeight, msg.Inverted, msg.BWThreshold)
+			frames, err := image.ConvertGifFromURLToVirtualBoard(gifUrl, maxWidth, maxHeight, msg.Inverted, msg.BWThreshold)
+			if err != nil {
+				log.Error("could not convert gif to virtualboard", err)
+			}
 
 			for frameIndex, frame := range frames.Flipboards {
 				frameDuration := frames.Delay[frameIndex]
