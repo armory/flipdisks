@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/color/palette"
+	"image/draw"
 	"image/gif"
 	_ "image/gif"
 	_ "image/jpeg"
@@ -83,15 +85,62 @@ func convertGifToVirtualBoard(raw []byte, maxWidth, maxHeight uint, invertImage 
 		return &flipboardGif, errors.New("couldn't decode gif: " + err.Error())
 	}
 
-	for i, frame := range g.Image {
-		vBoard := convertImgToVirtualBoard(frame, frame.Bounds(), invertImage, bwThreshold)
+	// Create a new RGBA image to hold the incremental frames.
+	firstFrame := g.Image[0].Bounds()
+	b := image.Rect(0, 0, firstFrame.Dx(), firstFrame.Dy())
+	img := image.NewRGBA(b)
+
+	// Resize each f.
+	lastIndexToHaveNoDisposalPrev := 0
+	for frameIndex := range g.Image {
+		frameDisposal := g.Disposal[frameIndex]
+
+		switch frameDisposal {
+		case gif.DisposalPrevious:
+			fmt.Println(frameIndex, "prev")
+			g.Image[frameIndex] = g.Image[lastIndexToHaveNoDisposalPrev]
+			g.Image[frameIndex] = imgToPaletted(resizeImage(maxWidth, maxHeight, g.Image[frameIndex]))
+		case gif.DisposalNone:
+			fmt.Println(frameIndex, "none")
+			lastIndexToHaveNoDisposalPrev = frameIndex
+			g.Image[frameIndex+1] = imgToPaletted(resizeImage(maxWidth, maxHeight, g.Image[frameIndex]))
+		case gif.DisposalBackground:
+			fmt.Println(frameIndex, "background")
+			lastIndexToHaveNoDisposalPrev = frameIndex
+			if frameIndex > 0 {
+				g.Image[frameIndex] = imgToPaletted(g.Image[frameIndex-1])
+			} else {
+				g.Image[frameIndex] = imgToPaletted(resizeImage(maxWidth, maxHeight, g.Image[frameIndex]))
+			}
+		}
+
+		bounds := g.Image[frameIndex].Bounds()
+		draw.Draw(img, bounds, g.Image[frameIndex], bounds.Min, draw.Over)
+
+		vBoard := convertImgToVirtualBoard(g.Image[frameIndex], g.Image[frameIndex].Bounds(), invertImage, bwThreshold)
 		flipboardGif.Flipboards = append(flipboardGif.Flipboards, vBoard)
 
 		// gif time duration is 100th of a second, instead, lets convert it to a time.Duration so it's easier to understand
-		flipboardGif.Delay = append(flipboardGif.Delay, time.Duration(g.Delay[i]/100)*time.Second)
+		flipboardGif.Delay = append(flipboardGif.Delay, time.Duration(g.Delay[frameIndex]/100)*time.Second)
+
+		fmt.Println(g.Image[frameIndex].Bounds())
+		fmt.Println(vBoard)
+
+		time.Sleep(time.Millisecond * 500)
 	}
 
 	return &flipboardGif, nil
+}
+
+func resizeImage(width, height uint, img image.Image) image.Image {
+	return resize.Resize(width, height, img, resize.NearestNeighbor)
+}
+
+func imgToPaletted(img image.Image) *image.Paletted {
+	b := img.Bounds()
+	pm := image.NewPaletted(b, palette.Plan9)
+	draw.FloydSteinberg.Draw(pm, b, img, image.ZP)
+	return pm
 }
 
 func ConvertGifFromURLToVirtualBoard(gifUrl string, maxWidth, maxHeight uint, invertImage bool, bwThreshold int) (*FlipboardGif, error) {
