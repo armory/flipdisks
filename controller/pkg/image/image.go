@@ -89,60 +89,63 @@ func convertGifToVirtualBoard(raw []byte, maxWidth, maxHeight uint, invertImage 
 	firstFrame := g.Image[0].Bounds()
 	b := image.Rect(0, 0, firstFrame.Dx(), firstFrame.Dy())
 
-	fmt.Println(b)
-	fmt.Println("number of frames:", len(g.Image))
-	fmt.Println(g.Disposal)
-	fmt.Println("----------------")
+	//fmt.Println(b)
+	//fmt.Println("number of frames:", len(g.Image))
+	//fmt.Println(g.Disposal)
+	//fmt.Println("----------------")
 	//return &FlipboardGif{}, nil
 
 	// Resize each f.
-	//lastIndexToHaveNoDisposalPrev := 0
+	lastFrameThatWasntSetToDisposalPrev := 0
 	for frameIndex := range g.Image {
 		bounds := g.Image[frameIndex].Bounds()
 		img := image.NewRGBA(b)
 		var newGifFrame *image.Paletted
 
-		fmt.Println("frameNumber", frameIndex, bounds)
+		//fmt.Println("frameNumber", frameIndex, bounds)
 
 		if frameIndex == 0 {
 			draw.Draw(img, bounds, g.Image[frameIndex], bounds.Min, draw.Over)
-			newGifFrame = imgToPaletted(resizeImage(maxWidth, maxHeight, img))
+			lastFrameThatWasntSetToDisposalPrev = frameIndex
 		} else {
 			frameDisposal := g.Disposal[frameIndex-1] // the last disposal tells us what to do what the base img should be
 
 			switch frameDisposal {
 			case byte(0):
-				// do nothing
+				draw.Draw(img, bounds, g.Image[frameIndex], bounds.Min, draw.Over) // just display it
+				lastFrameThatWasntSetToDisposalPrev = frameIndex
+
 			case gif.DisposalNone:
-				fmt.Println(frameIndex, "none")
+				//fmt.Println(frameIndex, "none")
 
-				draw.Draw(img, bounds, g.Image[frameIndex-1], bounds.Min, draw.Over)
-				draw.Draw(img, bounds, g.Image[frameIndex], bounds.Min, draw.Over)
+				draw.Draw(img, bounds, g.Image[frameIndex-1], bounds.Min, draw.Over) // get the background
+				draw.Draw(img, bounds, g.Image[frameIndex], bounds.Min, draw.Over)   // draw our current frame on top of the background
+				lastFrameThatWasntSetToDisposalPrev = frameIndex
 
-				newGifFrame = imgToPaletted(resizeImage(maxWidth, maxHeight, img))
 			case gif.DisposalBackground:
-				fmt.Println(frameIndex, "background")
+				//fmt.Println(frameIndex, "background")
 				draw.Draw(img, bounds, g.Image[frameIndex], bounds.Min, draw.Over)
-				newGifFrame = imgToPaletted(resizeImage(maxWidth, maxHeight, img))
-			//case gif.DisposalPrevious:
-			//	fmt.Println(frameIndex, "prev")
-			//	g.Image[frameIndex] = g.Image[lastIndexToHaveNoDisposalPrev]
-			//	g.Image[frameIndex] = imgToPaletted(resizeImage(maxWidth, maxHeight, g.Image[frameIndex]))
+				lastFrameThatWasntSetToDisposalPrev = frameIndex
+
+			case gif.DisposalPrevious:
+				//	fmt.Println(frameIndex, "prev")
+				draw.Draw(img, bounds, g.Image[lastFrameThatWasntSetToDisposalPrev], bounds.Min, draw.Over)
 			}
 		}
 
+		newGifFrame = imgToPaletted(resizeImage(maxWidth, maxHeight, img))
 		vBoard := convertImgToVirtualBoard(newGifFrame, newGifFrame.Bounds(), invertImage, bwThreshold)
 		flipboardGif.Flipboards = append(flipboardGif.Flipboards, vBoard)
 
 		// gif time duration is 100th of a second, instead, lets convert it to a time.Duration so it's easier to understand
 		flipboardGif.Delay = append(flipboardGif.Delay, time.Duration(g.Delay[frameIndex]/100)*time.Second)
 
-		fmt.Println("summary:")
-		fmt.Println(g.Image[frameIndex].Bounds())
+		//fmt.Println("summary:")
+		//fmt.Println(g.Image[frameIndex].Bounds())
 		fmt.Println(vBoard)
 
 		//return &FlipboardGif{}, nil
-		time.Sleep(time.Millisecond * 250)
+		time.Sleep(time.Millisecond * 500)
 	}
 
 	return &flipboardGif, nil
