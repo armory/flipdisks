@@ -175,12 +175,14 @@ func ConvertGifFromURLToVirtualBoard(gifUrl string, maxWidth, maxHeight uint, in
 		return &FlipboardGif{}, errors.New("couldn't get raw gif data: " + err.Error())
 	}
 
+	//fmt.Println("asdfasdf")
+
 	return convertGifToVirtualBoard(raw, maxWidth, maxHeight, invertImage, bwThreshold)
 }
 
 // GetGifUrl given a message, it'll return an array of gif string urls
 func GetGifUrl(url string) []string {
-	matched := regexp.MustCompile(`https?://.*\.gif(?:(\\?)\?(?:\w|\d|&|=)+)?(?:#\S+)?`).FindStringSubmatch(url)
+	matched := regexp.MustCompile(`https?://.*\.gif(?:(\\?)\?(?:\w|\d|&|=|-)+)?(?:\#(?:\w|-)+)?`).FindStringSubmatch(url)
 
 	// we really don't care about the empty ones
 	urls := matched[:0]

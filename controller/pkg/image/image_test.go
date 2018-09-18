@@ -174,9 +174,17 @@ func TestIsGifUrl(t *testing.T) {
 			url:     "<https://www.blah.com/cats.gif?one=1>",
 			gifUrls: []string{"https://www.blah.com/cats.gif?one=1"},
 		},
+		"slack: should be able to handle query params with dashes": {
+			url:     "<https://www.blah.com/cats.gif?one=1&hello=you-animal>",
+			gifUrls: []string{"https://www.blah.com/cats.gif?one=1&hello=you-animal"},
+		},
 		"slack: simple url with anchor": {
 			url:     "<https://www.blah.com/cats.gif#mooo>",
-			gifUrls: []string{"https://www.blah.com/cats.gif#moo"},
+			gifUrls: []string{"https://www.blah.com/cats.gif#mooo"},
+		},
+		"slack: simple url with anchor dash and number": {
+			url:     "<https://www.blah.com/cats.gif#mooo-12323-abc>",
+			gifUrls: []string{"https://www.blah.com/cats.gif#mooo-12323-abc"},
 		},
 	}
 	for name, test := range tests {
