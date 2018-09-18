@@ -1,12 +1,14 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 
+	"github.com/armory/flipdisks/controller/pkg/flipboard"
 	"github.com/armory/flipdisks/controller/pkg/fontmap"
 	"github.com/armory/flipdisks/controller/pkg/options"
+	"github.com/armory/flipdisks/controller/pkg/virtualboard"
 	"github.com/kr/pty"
-	"reflect"
 )
 
 func TestCreateVirtualBoard(t *testing.T) {
@@ -15,7 +17,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 		panelWidth, numberOfPanelsWide int
 		message                        string
 
-		expect VirtualBoard
+		expect virtualboard.VirtualBoard
 	}{
 		{
 			testDescription:    "It should print out a simple Message",
@@ -172,7 +174,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 
 	for index, testCase := range tests {
 		msgAsDots := fontmap.Render(testCase.message)
-		got := createVirtualBoard(testCase.panelWidth, testCase.numberOfPanelsWide, msgAsDots, testCase.message)
+		got := flipboard.CreateVirtualBoard(testCase.panelWidth, testCase.numberOfPanelsWide, msgAsDots, testCase.message)
 		if !reflect.DeepEqual(testCase.expect, got) {
 			t.Errorf("Test %d", index)
 			t.Errorf("Expected\n%#v:\n%s", testCase.expect, testCase.expect)
@@ -188,65 +190,74 @@ func TestCreateVirtualBoard(t *testing.T) {
 //	- add a return type and check that
 func TestDisplayMessageToPanels(t *testing.T) {
 	tests := map[string]struct {
-		msg options.FlipBoardDisplayOptions
+		msg options.FlipboardMessageOptions
 	}{
 		"simple and autofill": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 			},
 		},
 		"string with linebreak": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple\nString",
 			},
 		},
 		"image url": {
-			msg: func() (options.FlipBoardDisplayOptions) {
+			msg: func() options.FlipboardMessageOptions {
 				o := options.GetDefaultOptions()
 				o.Message = "https://cl.ly/2r0k2I1P0d2i/Armory_logo_monochrome_shield%20(2).jpg"
+				o.DisplayTime = 1
 				return o
 			}(),
 		},
 		"simple string inverted and autofill": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message:  "Simple String",
 				Inverted: true,
 			},
 		},
 		"simple string align center center": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 				Align:   "center center",
 			},
 		},
 		"simple string align left center": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 				Align:   "left center",
 			},
 		},
 		"simple string align right center": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 				Align:   "right center",
 			},
 		},
 		"simple string align right bottom": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 				Align:   "right right",
 			},
 		},
 		"simple string fill": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 				Fill:    "false",
 			},
 		},
 		"simple string autofill": {
-			msg: options.FlipBoardDisplayOptions{
+			msg: options.FlipboardMessageOptions{
 				Message: "Simple String",
 			},
+		},
+		"gif url": {
+			msg: func() options.FlipboardMessageOptions {
+				o := options.GetDefaultOptions()
+				o.Message = "https://emojis.slackmojis.com/emojis/images/1471119456/981/fast_parrot.gif?1471119456"
+				o.DisplayTime = 0
+				return o
+			}(),
 		},
 	}
 
@@ -256,24 +267,21 @@ func TestDisplayMessageToPanels(t *testing.T) {
 			_, tty, _ := pty.Open()
 			defer func() { tty.Close() }()
 
-			playlist := &Playlist{
-				PanelInfo: PanelInfo{
-					// actual panels
-					PanelWidth:  28,
-					PanelHeight: 7,
-
-					PhysicallyDisplayedWidth: 7,
-				},
-				PanelAddressesLayout: [][]int{
-					{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-					{10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
-				},
+			panelInfo := flipboard.PanelInfo{
+				Baud:                     9600,
+				Port:                     tty.Name(),
+				PanelWidth:               28,
+				PanelHeight:              7,
+				PhysicallyDisplayedWidth: 7,
 			}
-			baudRate := 9600
-			ttyName := tty.Name()
-			panels, _ := createPanels(playlist, &ttyName, &baudRate)
 
-			DisplayMessageToPanels(test.msg, panels, playlist)
+			panelLayout := [][]flipboard.PanelAddress{
+				{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+				{10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
+			}
+
+			board, _ := flipboard.NewFlipboard(panelInfo, panelLayout)
+			flipboard.DisplayMessageToPanels(board, &test.msg)
 		})
 	}
 }
