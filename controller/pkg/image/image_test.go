@@ -166,6 +166,18 @@ func TestIsGifUrl(t *testing.T) {
 			url:     "http://www.blah.com",
 			gifUrls: nil,
 		},
+		"slack: simple url": {
+			url:     "<https://www.blah.com/cats.gif>",
+			gifUrls: []string{"https://www.blah.com/cats.gif"},
+		},
+		"slack: should be able to handle query params": {
+			url:     "<https://www.blah.com/cats.gif?one=1>",
+			gifUrls: []string{"https://www.blah.com/cats.gif?one=1"},
+		},
+		"slack: simple url with anchor": {
+			url:     "<https://www.blah.com/cats.gif#mooo>",
+			gifUrls: []string{"https://www.blah.com/cats.gif#moo"},
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
