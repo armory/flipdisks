@@ -131,6 +131,7 @@ func DisplayMessageToPanels(board *Flipboard, msg *options.FlipboardMessageOptio
 	fmt.Printf("Enqueuing Message: %+v\n", msg.Message)
 
 	gifUrls := image.GetGifUrl(msg.Message)
+	plainUrls := image.GetPlainImageUrl(msg.Message)
 	if gifUrls != nil {
 		for _, gifUrl := range gifUrls {
 			fmt.Println("Got gif! rendering...")
@@ -153,9 +154,11 @@ func DisplayMessageToPanels(board *Flipboard, msg *options.FlipboardMessageOptio
 				//time.Sleep(1 * time.Second)
 			}
 		}
-	} else if image.IsPlainImageUrl(msg.Message) {
-		v := image.ConvertImageUrlToVirtualBoard(maxWidth, maxHeight, msg.Message, msg.Inverted, msg.BWThreshold)
-		displayVirtualBoardToPhysicalBoard(msg, v, board)
+	} else if plainUrls != nil {
+		for _, plainUrl := range plainUrls {
+			v := image.ConvertImageUrlToVirtualBoard(maxWidth, maxHeight, plainUrl, msg.Inverted, msg.BWThreshold)
+			displayVirtualBoardToPhysicalBoard(msg, v, board)
+		}
 	} else { // plain text
 		v := renderTextToVirtualBoard(msg, board)
 		displayVirtualBoardToPhysicalBoard(msg, v, board)

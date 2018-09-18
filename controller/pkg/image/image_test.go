@@ -8,7 +8,6 @@ import (
 
 	"github.com/armory/flipdisks/controller/pkg/virtualboard"
 	"github.com/go-test/deep"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestConvert(t *testing.T) {
@@ -41,81 +40,85 @@ func TestIsPlainImageUrl(t *testing.T) {
 	tests := map[string]struct {
 		url string
 
-		expected bool
+		plainUrls []string
 	}{
 		".png": {
-			url:      "http://www.blah.com/doge.png",
-			expected: true,
+			url:       "http://www.blah.com/doge.png",
+			plainUrls: []string{"http://www.blah.com/doge.png"},
 		},
 		"https .png": {
-			url:      "https://www.blah.com/cats.png",
-			expected: true,
+			url:       "https://www.blah.com/cats.png",
+			plainUrls: []string{"https://www.blah.com/cats.png"},
 		},
 		"png in url path should not match, only if it's a file extension": {
-			url:      "https://www.blah.com/cats/png",
-			expected: false,
+			url:       "https://www.blah.com/cats/png",
+			plainUrls: nil,
 		},
 		"should be able to handle anchors for .png": {
-			url:      "https://www.blah.com/cats.png#blah",
-			expected: true,
+			url:       "https://www.blah.com/cats.png#blah",
+			plainUrls: []string{"https://www.blah.com/cats.png#blah"},
 		},
 		"should be able to handle query params for .png": {
-			url:      "https://www.blah.com/cats.png?one=1",
-			expected: true,
+			url:       "https://www.blah.com/cats.png?one=1",
+			plainUrls: []string{"https://www.blah.com/cats.png?one=1"},
 		},
 		".jpg": {
-			url:      "https://www.blah.com/doge.jpg",
-			expected: true,
+			url:       "https://www.blah.com/doge.jpg",
+			plainUrls: []string{"https://www.blah.com/doge.jpg"},
 		},
 		"https .jpg": {
-			url:      "https://www.blah.com/cats.jpg",
-			expected: true,
+			url:       "https://www.blah.com/cats.jpg",
+			plainUrls: []string{"https://www.blah.com/cats.jpg"},
 		},
 		"jpg in url path should not match, only if it's a file extension": {
-			url:      "https://www.blah.com/cats/jpg",
-			expected: false,
+			url:       "https://www.blah.com/cats/jpg",
+			plainUrls: nil,
 		},
 		"should be able to handle anchors for .jpg": {
-			url:      "https://www.blah.com/cats.jpg#blah",
-			expected: true,
+			url:       "https://www.blah.com/cats.jpg#blah",
+			plainUrls: []string{"https://www.blah.com/cats.jpg#blah"},
 		},
 		"should be able to handle query params for .jpg": {
-			url:      "https://www.blah.com/cats.jpg?one=1",
-			expected: true,
+			url:       "https://www.blah.com/cats.jpg?one=1",
+			plainUrls: []string{"https://www.blah.com/cats.jpg?one=1"},
 		},
 		".jpeg": {
-			url:      "https://www.blah.com/doge.jpeg",
-			expected: true,
+			url:       "https://www.blah.com/doge.jpeg",
+			plainUrls: []string{"https://www.blah.com/doge.jpeg"},
 		},
 		"https .jpeg": {
-			url:      "https://www.blah.com/cats.jpeg",
-			expected: true,
+			url:       "https://www.blah.com/cats.jpeg",
+			plainUrls: []string{"https://www.blah.com/cats.jpeg"},
 		},
 		"jpeg in url path should not match, only if it's a file extension": {
-			url:      "https://www.blah.com/cats/jpeg",
-			expected: false,
+			url:       "https://www.blah.com/cats/jpeg",
+			plainUrls: nil,
 		},
 		"should be able to handle anchors with .jpeg": {
-			url:      "https://www.blah.com/cats.jpeg#blah",
-			expected: true,
+			url:       "https://www.blah.com/cats.jpeg#blah",
+			plainUrls: []string{"https://www.blah.com/cats.jpeg#blah"},
 		},
 		"should be able to handle query params with .jpeg": {
-			url:      "https://www.blah.com/cats.jpeg?one=1",
-			expected: true,
+			url:       "https://www.blah.com/cats.jpeg?one=1",
+			plainUrls: []string{"https://www.blah.com/cats.jpeg?one=1"},
 		},
 		".txt": {
-			url:      "https://www.blah.com/names.txt",
-			expected: false,
+			url:       "https://www.blah.com/names.txt",
+			plainUrls: nil,
 		},
 		"no extension": {
-			url:      "http://www.blah.com",
-			expected: false,
+			url:       "http://www.blah.com",
+			plainUrls: nil,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			assert.True(t, IsPlainImageUrl(test.url) == test.expected, "Failed")
+			plainUrls := GetPlainImageUrl(test.url)
+			diffs := deep.Equal(plainUrls, test.plainUrls)
 
+			for _, diff := range diffs {
+				t.Errorf(`Test "%s" failed with: %s`, name, diff)
+			}
 		})
 	}
 }

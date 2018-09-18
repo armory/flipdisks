@@ -25,9 +25,14 @@ import (
 
 func ConvertImageUrlToVirtualBoard(maxWidth, maxHeight uint, imgUrl string, invertImage bool, bwThreshold int) *virtualboard.VirtualBoard {
 	resp, err := http.Get(imgUrl)
-	img, _, err := image.Decode(resp.Body)
 	if err != nil {
 		log.Errorf("couldn't download an image %v", err)
+		return nil
+	}
+
+	img, _, err := image.Decode(resp.Body)
+	if err != nil {
+		log.Errorf("couldn't decode image %v", err)
 		return nil
 	}
 	defer resp.Body.Close()
@@ -195,10 +200,16 @@ func GetGifUrl(url string) []string {
 	return urls
 }
 
-func IsPlainImageUrl(url string) bool {
-	matchImageUrls := regexp.MustCompile(`^http.?://.*\.(?:png|jpe?g)(?:(\\?)\S+)?(?:#\S+)?`).FindStringSubmatch(url)
-	if len(matchImageUrls) > 0 {
-		return true
+func GetPlainImageUrl(url string) []string {
+	matchImageUrls := regexp.MustCompile(`https?://.*\.(?:png|jpeg|jpg)(?:` + `(?:\?(?:\w|\d|&|=|-)+)` + `|` + `(?:\#(?:\w|-)+)` + `)*`).FindStringSubmatch(url)
+
+	// we really don't care about the empty ones
+	urls := matchImageUrls[:0]
+	for _, x := range matchImageUrls {
+		if x != "" {
+			urls = append(urls, x)
+		}
 	}
-	return false
+
+	return urls
 }
