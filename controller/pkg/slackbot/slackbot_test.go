@@ -34,23 +34,23 @@ func TestSplitMessageAndOptions(t *testing.T) {
 	tests := map[string]struct {
 		msg string
 
-		Expected []options.FlipBoardDisplayOptions
+		Expected []options.FlipboardMessageOptions
 	}{
 		"simple message": {
 			msg: "hello",
-			Expected: func() []options.FlipBoardDisplayOptions {
+			Expected: func() []options.FlipboardMessageOptions {
 				o := options.GetDefaultOptions()
 				o.Message = "hello"
-				return []options.FlipBoardDisplayOptions{o}
+				return []options.FlipboardMessageOptions{o}
 			}(),
 		},
 		"simple options": {
 			msg: "hello\n---\ninverted: true",
-			Expected: func() []options.FlipBoardDisplayOptions {
+			Expected: func() []options.FlipboardMessageOptions {
 				o := options.GetDefaultOptions()
 				o.Message = "hello"
 				o.Inverted = true
-				return []options.FlipBoardDisplayOptions{o}
+				return []options.FlipboardMessageOptions{o}
 			}(),
 		},
 		"playlist options": {
@@ -60,7 +60,7 @@ func TestSplitMessageAndOptions(t *testing.T) {
 - message: world
   bwThreshold: 33
 `,
-			Expected: func() []options.FlipBoardDisplayOptions {
+			Expected: func() []options.FlipboardMessageOptions {
 				h := options.GetDefaultOptions()
 				h.Message = "hello"
 				h.Inverted = true
@@ -68,7 +68,7 @@ func TestSplitMessageAndOptions(t *testing.T) {
 				w := options.GetDefaultOptions()
 				w.Message = "world"
 				w.BWThreshold = 33
-				return []options.FlipBoardDisplayOptions{h, w}
+				return []options.FlipboardMessageOptions{h, w}
 			}(),
 		},
 		"playlist with newline in front": {
@@ -79,7 +79,7 @@ func TestSplitMessageAndOptions(t *testing.T) {
 - message: world
   bwThreshold: 33
 `,
-			Expected: func() []options.FlipBoardDisplayOptions {
+			Expected: func() []options.FlipboardMessageOptions {
 				h := options.GetDefaultOptions()
 				h.Message = "hello"
 				h.Inverted = true
@@ -87,14 +87,14 @@ func TestSplitMessageAndOptions(t *testing.T) {
 				w := options.GetDefaultOptions()
 				w.Message = "world"
 				w.BWThreshold = 33
-				return []options.FlipBoardDisplayOptions{h, w}
+				return []options.FlipboardMessageOptions{h, w}
 			}(),
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			diff := deep.Equal(splitMessageAndOptions(test.msg), test.Expected)
+			diff := deep.Equal(options.SplitMessageAndOptions(test.msg), test.Expected)
 			if diff != nil {
 				t.Error(diff)
 			}
@@ -102,40 +102,3 @@ func TestSplitMessageAndOptions(t *testing.T) {
 	}
 }
 
-func TestUnmarshleOptions(t *testing.T) {
-	tests := map[string]struct {
-		raw string
-
-		Expected options.FlipBoardDisplayOptions
-	}{
-		"simple": {
-			raw: "inverted: true",
-			Expected: func() options.FlipBoardDisplayOptions {
-				o := options.GetDefaultOptions()
-				o.Inverted = true
-				return o
-			}(),
-		},
-		"align": {
-			raw: "align: center center",
-			Expected: func() options.FlipBoardDisplayOptions {
-				o := options.GetDefaultOptions()
-
-				// these shouldn't be parsed and set in this function
-				o.Align = "center center"
-				o.XAlign = ""
-				o.YAlign = ""
-				return o
-			}(),
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			diff := deep.Equal(unmarshleOptions(test.raw), test.Expected)
-			if diff != nil {
-				t.Error(diff)
-			}
-		})
-	}
-}
