@@ -145,7 +145,7 @@ func convertGifToVirtualBoard(raw []byte, maxWidth, maxHeight uint, invertImage 
 		fmt.Println(vBoard)
 
 		//return &FlipboardGif{}, nil
-		time.Sleep(time.Millisecond * 500)
+		//time.Sleep(time.Millisecond * 500)
 	}
 
 	return &flipboardGif, nil

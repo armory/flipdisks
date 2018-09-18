@@ -148,7 +148,7 @@ func DisplayMessageToPanels(board *Flipboard, msg *options.FlipboardMessageOptio
 				displayVirtualBoardToPhysicalBoard(msg, frame, board)
 
 				time.Sleep(frameDuration)
-				time.Sleep(1 * time.Second)
+				//time.Sleep(1 * time.Second)
 			}
 		}
 	} else if image.IsPlainImageUrl(msg.Message) {
