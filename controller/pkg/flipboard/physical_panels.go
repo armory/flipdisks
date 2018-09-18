@@ -115,7 +115,7 @@ func (b *Flipboard) GetPanel(x, y int) (*panel.Panel) {
 	return &panels[x][y]
 }
 
-func (b *Flipboard) Send() () {
+func (b *Flipboard) SendPanelByPanel() () {
 	for y, row := range *b.panels {
 		for x, p := range row {
 			//p.PrintState()
@@ -125,4 +125,22 @@ func (b *Flipboard) Send() () {
 			}
 		}
 	}
+}
+
+func (b *Flipboard) SendAllPanelsAtOnce() () {
+	for y, row := range *b.panels {
+		for x, p := range row {
+			//p.PrintState()
+			p.Queue()
+			//err := p.Queue()
+			//if err != nil {
+			//	logrus.Errorf("could not send to panel (%d,%d): %s", y, x, err)
+			//}
+			logrus.Errorf("could not send to panel (%d,%d): %s", y, x, 1)
+		}
+	}
+
+	ps := *b.panels
+	p := ps[0][0]
+	p.Refresh()
 }

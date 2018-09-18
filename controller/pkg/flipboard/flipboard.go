@@ -144,6 +144,8 @@ func DisplayMessageToPanels(board *Flipboard, msg *options.FlipboardMessageOptio
 			for frameIndex, frame := range frames.Flipboards {
 				frameDuration := frames.Delay[frameIndex]
 
+				msg.SendPanelByPanel = false // gifs should refresh the whole screen at once
+
 				// a gif really is 1 "message", so we're not going to enqueue it, because someone else could put in a random message in it
 				displayVirtualBoardToPhysicalBoard(msg, frame, board)
 
@@ -208,8 +210,13 @@ func displayVirtualBoardToPhysicalBoard(msg *options.FlipboardMessageOptions, vB
 			p.Set(dotYCoord, dotXCoord, dotValue)
 		}
 	}
+
 	// send our virtual panels to the physical virtualBoard
-	board.Send()
+	if msg.SendPanelByPanel {
+		board.SendPanelByPanel()
+	} else {
+		board.SendAllPanelsAtOnce()
+	}
 }
 
 func setPhysicalBoardFill(msg *options.FlipboardMessageOptions, virtualBoard virtualboard.VirtualBoard, board *Flipboard) {

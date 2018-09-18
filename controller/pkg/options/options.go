@@ -15,25 +15,27 @@ type FlipboardMessageOptions struct {
 	Message      string `yaml:"message"`
 	VirtualBoard *virtualboard.VirtualBoard
 
-	DisplayTime int    `yaml:"displayTime"` // in ms
-	Append      bool   `yaml:"append"`
-	Align       string `yaml:"align"`
-	XAlign      string
-	YAlign      string
-	FontSize    int    `yaml:"font-size"`
-	Kerning     int    `yaml:"kerning"`
-	Inverted    bool   `yaml:"inverted"`
-	BWThreshold int    `yaml:"bwThreshold"`
-	Fill        string `yml:"fill"`
+	DisplayTime      int    `yaml:"displayTime"` // in ms
+	Append           bool   `yaml:"append"`
+	Align            string `yaml:"align"`
+	XAlign           string
+	YAlign           string
+	FontSize         int    `yaml:"font-size"`
+	Kerning          int    `yaml:"kerning"`
+	Inverted         bool   `yaml:"inverted"`
+	BWThreshold      int    `yaml:"bwThreshold"`
+	Fill             string `yml:"fill"`
+	SendPanelByPanel bool   `yml:sendPanelByPanel`
 }
 
 func GetDefaultOptions() FlipboardMessageOptions {
 	return FlipboardMessageOptions{
-		DisplayTime: int(5 * (time.Second / time.Millisecond)),	// stored in ms
-		Inverted:    false,
-		BWThreshold: 140, // magic
-		Fill:        "",
-		Align:       "center center",
+		DisplayTime:      int(5 * (time.Second / time.Millisecond)),	// stored in ms
+		Inverted:         false,
+		BWThreshold:      140, // magic
+		Fill:             "",
+		Align:            "center center",
+		SendPanelByPanel: true,
 	}
 }
 
