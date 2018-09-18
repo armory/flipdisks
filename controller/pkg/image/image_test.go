@@ -36,7 +36,7 @@ func TestConvert(t *testing.T) {
 	}
 }
 
-func TestIsPlainImageUrl(t *testing.T) {
+func TestGetPlainImageUrl(t *testing.T) {
 	tests := map[string]struct {
 		url string
 
