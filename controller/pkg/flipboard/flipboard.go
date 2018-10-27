@@ -142,6 +142,8 @@ func DisplayMessageToPanels(board *Flipboard, msg *options.FlipboardMessageOptio
 				log.Error("could not convert gif to virtualboard", err)
 			}
 
+			preprocessVBoardToPhyBoard()
+
 			for frameIndex, frame := range frames.Flipboards {
 				frameDuration := frames.Delay[frameIndex]
 
@@ -163,6 +165,25 @@ func DisplayMessageToPanels(board *Flipboard, msg *options.FlipboardMessageOptio
 		v := renderTextToVirtualBoard(msg, board)
 		displayVirtualBoardToPhysicalBoard(msg, v, board)
 	}
+}
+
+type preprocessedFrameData struct {
+	Flipboards []*frameData
+	Delay      []time.Duration
+}
+
+type frameData []byte
+
+// the idea here is that we do as much processing as possible so that we can send each frame
+// as quickly as possible. We'll need to do some hacks by rendering all the actual panel data here
+func preprocessVBoardToPhyBoard(vBoardFrames image.FlipboardGif) (preprocessedFrameData, error) {
+	var pre preprocessedFrameData
+
+	for frameIndex, vBoardFrame := range vBoardFrames {
+
+	}
+
+	return pre, nil
 }
 
 func displayVirtualBoardToPhysicalBoard(msg *options.FlipboardMessageOptions, vBoardPointer *virtualboard.VirtualBoard, board *Flipboard) {
