@@ -2,7 +2,6 @@ package flipboard
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/kevinawoo/flipdots/panel"
@@ -129,15 +128,10 @@ func (b *Flipboard) SendPanelByPanel() () {
 }
 
 func (b *Flipboard) SendAllPanelsAtOnce() () {
-	var wg sync.WaitGroup
 	for y, row := range *b.panels {
 		for x, p := range row {
 			//p.PrintState()
-			wg.Add(1)
-			go func() {
-				p.Queue()
-				wg.Done()
-			}()
+			p.Queue()
 			//err := p.Queue()
 			//if err != nil {
 			//	logrus.Errorf("could not send to panel (%d,%d): %s", y, x, err)
@@ -148,6 +142,5 @@ func (b *Flipboard) SendAllPanelsAtOnce() () {
 
 	ps := *b.panels
 	p := ps[0][0]
-	wg.Wait()
 	p.Refresh()
 }
