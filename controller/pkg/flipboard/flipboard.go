@@ -142,7 +142,7 @@ func DisplayMessageToPanels(board *Flipboard, msg *options.FlipboardMessageOptio
 				log.Error("could not convert gif to virtualboard", err)
 			}
 
-			preprocessVBoardToPhyBoard()
+			//preprocessVBoardToPhyBoard()
 
 			for frameIndex, frame := range frames.Flipboards {
 				frameDuration := frames.Delay[frameIndex]
@@ -176,14 +176,17 @@ type frameData []byte
 
 // the idea here is that we do as much processing as possible so that we can send each frame
 // as quickly as possible. We'll need to do some hacks by rendering all the actual panel data here
-func preprocessVBoardToPhyBoard(vBoardFrames image.FlipboardGif) (preprocessedFrameData, error) {
-	var pre preprocessedFrameData
-
-	for frameIndex, vBoardFrame := range vBoardFrames {
-
-	}
-
-	return pre, nil
+//func preprocessVBoardToPhyBoard(vBoardFrames image.FlipboardGif) (preprocessedFrameData, error) {
+//	var pre preprocessedFrameData
+//
+//	for frameIndex, vBoardFrame := range vBoardFrames {
+//
+//	}
+//
+//	return pre, nil
+//}
+func DisplayVirtualBoardToPhysicalBoard(msg *options.FlipboardMessageOptions, vBoardPointer *virtualboard.VirtualBoard, board *Flipboard) {
+	displayVirtualBoardToPhysicalBoard(msg, vBoardPointer, board)
 }
 
 func displayVirtualBoardToPhysicalBoard(msg *options.FlipboardMessageOptions, vBoardPointer *virtualboard.VirtualBoard, board *Flipboard) {
@@ -194,7 +197,7 @@ func displayVirtualBoardToPhysicalBoard(msg *options.FlipboardMessageOptions, vB
 	// set alignment options
 	msg.XAlign, msg.YAlign = options.GetAlignOptions(msg.Align)
 
-	fmt.Println(virtualBoard)
+	//fmt.Println(virtualBoard)
 
 	// the library flipped height and width by accident, we'll work around it
 	panelWidth := board.PanelInfo.PanelHeight

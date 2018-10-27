@@ -41,10 +41,10 @@ func ConvertImageUrlToVirtualBoard(maxWidth, maxHeight uint, imgUrl string, inve
 	bounds := img.Bounds()
 	fmt.Printf("%#v \n", bounds)
 
-	return convertImgToVirtualBoard(img, bounds, invertImage, bwThreshold)
+	return ConvertImgToVirtualBoard(img, bounds, invertImage, bwThreshold)
 }
 
-func convertImgToVirtualBoard(m image.Image, bounds image.Rectangle, invertImage bool, bwThreshold int) *virtualboard.VirtualBoard {
+func ConvertImgToVirtualBoard(m image.Image, bounds image.Rectangle, invertImage bool, bwThreshold int) *virtualboard.VirtualBoard {
 	var board []fontmap.Row
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		row := fontmap.Row{}
@@ -139,7 +139,7 @@ func convertGifToVirtualBoard(raw []byte, maxWidth, maxHeight uint, invertImage 
 		}
 
 		newGifFrame = imgToPaletted(resizeImage(maxWidth, maxHeight, img))
-		vBoard := convertImgToVirtualBoard(newGifFrame, newGifFrame.Bounds(), invertImage, bwThreshold)
+		vBoard := ConvertImgToVirtualBoard(newGifFrame, newGifFrame.Bounds(), invertImage, bwThreshold)
 		flipboardGif.Flipboards = append(flipboardGif.Flipboards, vBoard)
 
 		// gif time duration is 100th of a second, instead, lets convert it to a time.Duration so it's easier to understand
