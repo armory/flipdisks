@@ -10,6 +10,7 @@ import (
 	"github.com/armory/flipdisks/controller/pkg/flipboard"
 	"github.com/armory/flipdisks/controller/pkg/github"
 	"github.com/armory/flipdisks/controller/pkg/options"
+	"github.com/armory/flipdisks/controller/pkg/video"
 	"github.com/nlopes/slack"
 )
 
@@ -69,10 +70,22 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 
 	fmt.Printf("%#v \n", messages)
 
+	v := video.GetVideo()
+
 	// do some message cleanup because of slack formatting
 	for _, msg := range messages {
 		if strings.ToLower(msg.Message) == "help" {
 			s.respondWithHelpMsg(slackEvent.Msg.Channel)
+			return
+		}
+
+		if strings.ToLower(msg.Message) == "start camera" {
+			v.Start(board)
+			return
+		}
+
+		if strings.ToLower(msg.Message) == "stop camera" {
+			v.Stop()
 			return
 		}
 
@@ -175,4 +188,3 @@ fill:         # ("", true/false) leave blank for autofill, or select your own fi
 	msg += "```\n\n"
 	s.RTM.SendMessage(s.RTM.NewOutgoingMessage(msg, channelId))
 }
-

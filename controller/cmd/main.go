@@ -1,19 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
-	"image"
+	"sync"
 
 	"github.com/armory/flipdisks/controller/pkg/flipboard"
 	"github.com/armory/flipdisks/controller/pkg/github"
-	myimage "github.com/armory/flipdisks/controller/pkg/image"
-	"github.com/armory/flipdisks/controller/pkg/options"
-	"github.com/nfnt/resize"
+	"github.com/armory/flipdisks/controller/pkg/slackbot"
 	log "github.com/sirupsen/logrus"
-
-	"gocv.io/x/gocv"
 )
 
 func main() {
@@ -36,7 +31,7 @@ func main() {
 	if err != nil {
 		log.Error("Could not create githubClient, hopefully everything will work!")
 	}
-	_, err = g.GetEmojis()
+	githubEmojiLookup, err := g.GetEmojis()
 	if err != nil {
 		log.Error("Could not get emojis from Github", err)
 	}
@@ -65,62 +60,14 @@ func main() {
 		log.Fatal("couldn't create flipboard: " + err.Error())
 	}
 
-	//start
-	deviceID := 0
-	webcam, err := gocv.VideoCaptureDevice(0)
-	if err != nil {
-		fmt.Printf("Error opening video capture device: %v\n", deviceID)
-		return
-	}
-	webcam.Set(gocv.VideoCaptureFPS, 10)
-	webcam.Set(gocv.VideoCaptureFrameWidth, 50)
-	webcam.Set(gocv.VideoCaptureFrameHeight, 50)
-	defer webcam.Close()
+	slack := slackbot.NewSlack(slackToken, githubEmojiLookup)
 
-	window := gocv.NewWindow("Motion Window")
-	defer window.Close()
+	go slack.StartSlackListener(board)
 
-	img := gocv.NewMat()
-	defer img.Close()
+	go flipboard.Play(board)
 
-	imgDelta := gocv.NewMat()
-	defer imgDelta.Close()
-
-	imgThresh := gocv.NewMat()
-	defer imgThresh.Close()
-
-	mog2 := gocv.NewBackgroundSubtractorMOG2()
-	defer mog2.Close()
-	//
-
-	fmt.Printf("Start reading device: %v\n", deviceID)
-	opp := options.GetDefaultOptions()
-	opp.DisplayTime = 0
-	for {
-		if ok := webcam.Read(&img); !ok {
-			fmt.Printf("Device closed: %v\n", deviceID)
-			return
-		}
-		if img.Empty() {
-			continue
-		}
-
-		mog2.Apply(img, &imgDelta)
-		gocv.Threshold(imgDelta, &imgThresh, 10, 255, gocv.ThresholdBinary)
-		kernel := gocv.GetStructuringElement(gocv.MorphRect, image.Pt(3, 3))
-		defer kernel.Close()
-		gocv.Erode(imgThresh, &imgThresh, kernel)
-
-		q, err := gocv.IMEncode(gocv.PNGFileExt, img)
-		if err != nil {
-			panic(err)
-		}
-		qq, _, err := image.Decode(bytes.NewReader(q))
-		if err != nil {
-			panic(err)
-		}
-		qq = resize.Thumbnail(50, 50, qq, resize.Lanczos3)
-		zz := myimage.ConvertImgToVirtualBoard(qq, qq.Bounds(), false, 90)
-		flipboard.DisplayVirtualBoardToPhysicalBoard(&opp, zz, board)
-	}
+	// we're actually going to just block forever so the program stays alive
+	var wg sync.WaitGroup
+	wg.Add(1)
+	wg.Wait()
 }
