@@ -167,6 +167,10 @@ func (s *Slack) renderSlackEmojis(msg string) string {
 func (s *Slack) respondWithHelpMsg(channelId string) {
 	msg := `DM me something and I'll try to display that on the board.
 
+Supported commands:
+"start camera" - starts the webcam and displays live video on the flipdisk board
+"stop camera" - stops the webcam and retuns the board to a normal state
+
 You can also supply options for the board by doing:
 `
 
