@@ -63,6 +63,11 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 		rawMsg = slackEvent.SubMessage.Text
 	}
 
+	myUserId := fmt.Sprintf("<@%s>", s.RTM.GetInfo().User.ID)
+	if strings.HasPrefix(rawMsg, myUserId) {
+		rawMsg = s.editSettings(rawMsg, board)
+	}
+
 	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
 
 	messages := options.SplitMessageAndOptions(rawMsg)
@@ -83,6 +88,33 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 		board.Enqueue(&msg)
 	}
 }
+
+func (s *Slack) editSettings(rawMsg string, board *flipboard.Flipboard) (string) {
+	myUserId := fmt.Sprintf("<@%s>", s.RTM.GetInfo().User.ID)
+	cleanMsg := strings.Replace(rawMsg, myUserId, "", -1)
+	settings := strings.Split(strings.TrimSpace(cleanMsg), " ")
+	settingName := settings[0]
+	val := settings[1]
+
+	switch settingName {
+	case "countdown":
+		fallthrough
+	case "countdownClock":
+		if val == "enable" {
+			flipboard.EnableCountdownClock(board)
+			return "enabled countdown"
+		} else if val == "disable" {
+			flipboard.DisableCountdownClock(board)
+			return "disabled countdown"
+		} else {
+			flipboard.SetCountdownClock(board, val)
+			return "setting countdown to " + val
+		}
+	}
+
+	return "unknown setting"
+}
+
 
 func cleanupSlackEncodedCharacters(msg string) string {
 	// replace slack tokens that are rendered to characters

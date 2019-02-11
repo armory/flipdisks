@@ -22,6 +22,7 @@ type Flipboard struct {
 	countdownDate        string
 	newMessage           chan bool
 	msgCurrentlyPlaying  bool
+	displayCountdown     bool
 }
 
 type Opts func(*Flipboard) error
@@ -52,15 +53,15 @@ func NewFlipboard(info PanelInfo, layout [][]PanelAddress, opts ...Opts) (*Flipb
 func CountdownDate(date string) Opts {
 	return func(flipboard *Flipboard) error {
 		if date == "" {
-			return errors.New("countdown date called without date being set")
+			DisableCountdownClock(flipboard)
+		} else {
+			SetCountdownClock(flipboard, date)
 		}
-
-		flipboard.countdownDate = date
 
 		fmt.Println("starting countdown clock")
 		go func() {
 			for {
-				if len(flipboard.displayQueue) == 0 && flipboard.msgCurrentlyPlaying == false {
+				if len(flipboard.displayQueue) == 0 && flipboard.msgCurrentlyPlaying == false && flipboard.displayCountdown == true {
 					tick := flipboard.getNextCountdown()
 					flipboard.Enqueue(&tick)
 				}
@@ -293,11 +294,15 @@ func findOffSets(options *options.FlipboardMessageOptions, vBoardPointer *virtua
 }
 
 func (b *Flipboard) getNextCountdown() options.FlipboardMessageOptions {
-	horizonEventTime, err := time.Parse("2006-01-02", b.countdownDate)
-	if err != nil {
-		fmt.Println(err)
-	}
 	t := time.Now()
+	horizonEventTime := t
+
+	if b.countdownDate != "" {
+		horizonEventTime, _ = time.Parse("2006-01-02", b.countdownDate)
+	} else {
+		fmt.Println("warning, no date set for countdown, we'll just default to time.Now() to make 00:00:00:00")
+	}
+
 	elapsed := horizonEventTime.Sub(t)
 	days := int(elapsed.Hours() / 24)
 	hours := int(elapsed.Hours()) % 24
@@ -309,4 +314,17 @@ func (b *Flipboard) getNextCountdown() options.FlipboardMessageOptions {
 		Align:       "center center",
 	}
 	return msg
+}
+
+func SetCountdownClock(board *Flipboard, val string) {
+	board.countdownDate = val
+	EnableCountdownClock(board)
+}
+
+func EnableCountdownClock(board *Flipboard) {
+	board.displayCountdown = true
+}
+
+func DisableCountdownClock(board *Flipboard) {
+	board.displayCountdown = true
 }

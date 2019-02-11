@@ -51,9 +51,7 @@ func main() {
 	}
 
 	var flipboardOpts []flipboard.Opts
-	if countdownDate != "" {
-		flipboardOpts = append(flipboardOpts, flipboard.CountdownDate(countdownDate))
-	}
+	flipboardOpts = append(flipboardOpts, flipboard.CountdownDate(countdownDate))
 
 	board, err := flipboard.NewFlipboard(panelInfo, panelLayout, flipboardOpts...)
 	if err != nil {
