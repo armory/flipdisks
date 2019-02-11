@@ -51,11 +51,15 @@ func main() {
 	}
 
 	var flipboardOpts []flipboard.Opts
-	flipboardOpts = append(flipboardOpts, flipboard.CountdownDate(countdownDate))
+	flipboardOpts = append(flipboardOpts, flipboard.NewCountdownDate())
 
 	board, err := flipboard.NewFlipboard(panelInfo, panelLayout, flipboardOpts...)
 	if err != nil {
 		log.Fatal("couldn't create flipboard: " + err.Error())
+	}
+
+	if countdownDate != "" {
+		flipboard.SetCountdownClock(board, countdownDate)
 	}
 
 	slack := slackbot.NewSlack(slackToken, githubEmojiLookup)

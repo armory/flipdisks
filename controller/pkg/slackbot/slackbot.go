@@ -1,11 +1,13 @@
 package slackbot
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"github.com/armory/flipdisks/controller/pkg/flipboard"
 	"github.com/armory/flipdisks/controller/pkg/github"
@@ -63,9 +65,11 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 		rawMsg = slackEvent.SubMessage.Text
 	}
 
-	myUserId := fmt.Sprintf("<@%s>", s.RTM.GetInfo().User.ID)
-	if strings.HasPrefix(rawMsg, myUserId) {
-		rawMsg = s.editSettings(rawMsg, board)
+	if strings.HasPrefix(rawMsg, s.getMyUserIdFormatted()) {
+		rawMsg = s.editSettings(rawMsg, board, slackEvent)
+		if rawMsg == "" {
+			return // let's just ignore it if we don't have anything to display on the board
+		}
 	}
 
 	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
@@ -89,32 +93,43 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 	}
 }
 
-func (s *Slack) editSettings(rawMsg string, board *flipboard.Flipboard) (string) {
-	myUserId := fmt.Sprintf("<@%s>", s.RTM.GetInfo().User.ID)
-	cleanMsg := strings.Replace(rawMsg, myUserId, "", -1)
+func (s *Slack) editSettings(rawMsg string, board *flipboard.Flipboard, event *slack.MessageEvent) string {
+	// remove my userId from the message
+	cleanMsg := strings.Replace(rawMsg, s.getMyUserIdFormatted(), "", -1)
 	settings := strings.Split(strings.TrimSpace(cleanMsg), " ")
+
 	settingName := settings[0]
-	val := settings[1]
 
 	switch settingName {
 	case "countdown":
 		fallthrough
 	case "countdownClock":
-		if val == "enable" {
+		val := settings[1]
+
+		if val == "enable" || val == "enabled" {
 			flipboard.EnableCountdownClock(board)
 			return "enabled countdown"
-		} else if val == "disable" {
+		} else if val == "disable" || val == "disabled" {
 			flipboard.DisableCountdownClock(board)
 			return "disabled countdown"
 		} else {
-			flipboard.SetCountdownClock(board, val)
+			if err := flipboard.SetCountdownClock(board, val); err != nil {
+				return "date not set, " + err.Error()
+			}
 			return "setting countdown to " + val
 		}
+	case "help":
+		s.respondWithSettingsHelpMessage(event.Msg.Channel)
+		return ""
 	}
 
-	return "unknown setting"
+	s.respondWithSettingsHelpMessage(event.Msg.Channel)
+	return "received an unknown setting"
 }
 
+func (s *Slack) getMyUserIdFormatted() string {
+	return fmt.Sprintf("<@%s>", s.RTM.GetInfo().User.ID)
+}
 
 func cleanupSlackEncodedCharacters(msg string) string {
 	// replace slack tokens that are rendered to characters
@@ -208,3 +223,24 @@ fill:         # ("", true/false) leave blank for autofill, or select your own fi
 	s.RTM.SendMessage(s.RTM.NewOutgoingMessage(msg, channelId))
 }
 
+func (s *Slack) respondWithSettingsHelpMessage(channelId string) {
+	t, _ := template.New("help").Parse("```" + `You can change settings of the bot by saying:
+	@{{.Username}} <setting_name> <setting_val>
+
+Available Settings:
+---
+help                   # show this help message
+countdown enable       # enable the countdown clock
+countdown disable      # disable the countdown clock
+countdown YYYY-MM-DD   # set a new countdown date and enable it
+` + "```")
+
+	var buff bytes.Buffer
+	_ = t.Execute(&buff, struct {
+		Username string
+	}{
+		Username: s.RTM.GetInfo().User.Name,
+	})
+
+	s.RTM.SendMessage(s.RTM.NewOutgoingMessage(buff.String(), channelId))
+}

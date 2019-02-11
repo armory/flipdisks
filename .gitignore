@@ -19,6 +19,7 @@
 server/vendor/*
 controller/vendor/*
 controller/build/
+controller/db.json/
 
 
 node_modules/

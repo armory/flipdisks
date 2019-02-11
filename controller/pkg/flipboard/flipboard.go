@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/armory/flipdisks/controller/db"
 	"github.com/armory/flipdisks/controller/pkg/image"
 	"github.com/armory/flipdisks/controller/pkg/options"
 	"github.com/armory/flipdisks/controller/pkg/virtualboard"
@@ -23,6 +24,7 @@ type Flipboard struct {
 	newMessage           chan bool
 	msgCurrentlyPlaying  bool
 	displayCountdown     bool
+	db                   *db.Db
 }
 
 type Opts func(*Flipboard) error
@@ -33,11 +35,17 @@ func NewFlipboard(info PanelInfo, layout [][]PanelAddress, opts ...Opts) (*Flipb
 		return &Flipboard{}, errors.New("couldn't create panels: " + err.Error())
 	}
 
+	d, err := db.NewDb("db.json", nil)
+	if err != nil {
+		return &Flipboard{}, errors.New("couldn't create db: " + err.Error())
+	}
+
 	board := Flipboard{
 		panels:               panels,
 		PanelInfo:            info,
 		PanelAddressesLayout: layout,
 		newMessage:           make(chan bool),
+		db:                   d,
 	}
 
 	for _, opt := range opts {
@@ -50,13 +58,10 @@ func NewFlipboard(info PanelInfo, layout [][]PanelAddress, opts ...Opts) (*Flipb
 	return &board, nil
 }
 
-func CountdownDate(date string) Opts {
+func NewCountdownDate() Opts {
 	return func(flipboard *Flipboard) error {
-		if date == "" {
-			DisableCountdownClock(flipboard)
-		} else {
-			SetCountdownClock(flipboard, date)
-		}
+		flipboard.displayCountdown = db.SettingsRead(flipboard.db, db.SettingsCountdownEnabled) == "true"
+		flipboard.countdownDate = db.SettingsRead(flipboard.db, db.SettingsCountdownDate)
 
 		fmt.Println("starting countdown clock")
 		go func() {
@@ -310,21 +315,30 @@ func (b *Flipboard) getNextCountdown() options.FlipboardMessageOptions {
 	secs := int(elapsed.Seconds()) % 60
 	msg := options.FlipboardMessageOptions{
 		Message:     fmt.Sprintf("HORIZON EVENT\n%d:%02d:%02d:%02d", days, hours, mins, secs),
-		DisplayTime: 0, // the CountdownDate option controls the timing
+		DisplayTime: 0, // the NewCountdownDate option controls the timing
 		Align:       "center center",
 	}
 	return msg
 }
 
-func SetCountdownClock(board *Flipboard, val string) {
+func SetCountdownClock(board *Flipboard, val string) error {
+	_, err := time.Parse("2006-01-02", val)
+	if err != nil {
+		return errors.New("unknown date format, try YYYY-MM-DD")
+	}
+
+	db.SettingsWrite(board.db, db.SettingsCountdownDate, val)
 	board.countdownDate = val
 	EnableCountdownClock(board)
+	return nil
 }
 
 func EnableCountdownClock(board *Flipboard) {
+	db.SettingsWrite(board.db, db.SettingsCountdownEnabled, "true")
 	board.displayCountdown = true
 }
 
 func DisableCountdownClock(board *Flipboard) {
-	board.displayCountdown = true
+	db.SettingsWrite(board.db, db.SettingsCountdownEnabled, "false")
+	board.displayCountdown = false
 }
