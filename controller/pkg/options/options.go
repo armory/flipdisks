@@ -24,8 +24,8 @@ type FlipboardMessageOptions struct {
 	Kerning          int    `yaml:"kerning"`
 	Inverted         bool   `yaml:"inverted"`
 	BWThreshold      int    `yaml:"bwThreshold"`
-	Fill             string `yml:"fill"`
-	SendPanelByPanel bool   `yml:sendPanelByPanel`
+	Fill             string `yaml:"fill"`
+	SendPanelByPanel bool   `yaml:"sendPanelByPanel"`
 }
 
 func GetDefaultOptions() FlipboardMessageOptions {
