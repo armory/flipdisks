@@ -136,7 +136,7 @@ func (b *Flipboard) SendAllPanelsAtOnce() () {
 			//if err != nil {
 			//	logrus.Errorf("could not send to panel (%d,%d): %s", y, x, err)
 			//}
-			logrus.Errorf("could not send to panel (%d,%d): %s", y, x, 1)
+			logrus.Errorf("could not send to panel (%d,%d): %d", y, x, 1)
 		}
 	}
 
