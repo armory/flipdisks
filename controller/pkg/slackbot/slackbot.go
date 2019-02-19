@@ -292,6 +292,7 @@ func (s *Slack) respondWithSSHConnectionString(channelId string) {
 		return
 	}
 
-	slackMessage = fmt.Sprintf("`ssh -p %s pi@%s`", ngrokUrl.Port(), ngrokUrl.Hostname())
+	slackMessage = fmt.Sprintf("`ssh -p %s pi@%s`\n", ngrokUrl.Port(), ngrokUrl.Hostname())
+	slackMessage += fmt.Sprintf("`host: %s:%s`", ngrokUrl.Hostname(), ngrokUrl.Port())
 	s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
 }
