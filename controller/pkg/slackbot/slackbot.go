@@ -66,7 +66,7 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 	}
 
 	if strings.HasPrefix(rawMsg, s.getMyUserIdFormatted()) {
-		if strings.Contains(strings.ToLower(rawMsg), "ssh") {
+		if strings.Contains(strings.ToLower(rawMsg), "ssh") || strings.Contains(strings.ToLower(rawMsg), "deploy") {
 			s.respondWithSSHConnectionString(slackEvent.Msg.Channel)
 			return
 		}
@@ -293,6 +293,7 @@ func (s *Slack) respondWithSSHConnectionString(channelId string) {
 	}
 
 	slackMessage = fmt.Sprintf("`ssh -p %s pi@%s`\n", ngrokUrl.Port(), ngrokUrl.Hostname())
-	slackMessage += fmt.Sprintf("`host: %s:%s`", ngrokUrl.Hostname(), ngrokUrl.Port())
+	slackMessage += fmt.Sprintf("`host: %s:%s`\n", ngrokUrl.Hostname(), ngrokUrl.Port())
+	slackMessage += fmt.Sprintf("`./bin/build-controller.sh && HOST=%s PORT=%s ./bin/deploy-controller.sh`\n", ngrokUrl.Hostname(), ngrokUrl.Port())
 	s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
 }
