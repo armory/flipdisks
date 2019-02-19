@@ -2,8 +2,12 @@ package slackbot
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"text/template"
@@ -62,10 +66,16 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 	}
 
 	if strings.HasPrefix(rawMsg, s.getMyUserIdFormatted()) {
-		rawMsg = s.editSettings(rawMsg, board, slackEvent)
+		if strings.Contains(strings.ToLower(rawMsg), "ssh") {
+			s.respondWithSSHConnectionString(slackEvent.Msg.Channel)
+			return
+		}
+
 		if rawMsg == "" {
 			return // let's just ignore it if we don't have anything to display on the board
 		}
+
+		rawMsg = s.editSettings(rawMsg, board, slackEvent)
 	}
 
 	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
@@ -239,4 +249,49 @@ countdown YYYY-MM-DD   # set a new countdown date and enable it
 	})
 
 	s.RTM.SendMessage(s.RTM.NewOutgoingMessage(buff.String(), channelId))
+}
+
+func (s *Slack) respondWithSSHConnectionString(channelId string) {
+	slackMessage := ""
+
+	ngrokResp, err := http.Get("http://localhost:4040/api/tunnels")
+	if err != nil || ngrokResp == nil {
+		slackMessage = "local ngrok could not be reached"
+		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
+		return
+	}
+
+	defer ngrokResp.Body.Close()
+
+	ngrokBody, err := ioutil.ReadAll(ngrokResp.Body)
+	if err != nil {
+		slackMessage = "could not read ngrok response"
+		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
+		return
+	}
+
+	ngrok := struct {
+		Tunnels []struct {
+			Name      string
+			PublicUrl string `json:"public_url"`
+		}
+	}{}
+
+	err = json.Unmarshal(ngrokBody, &ngrok)
+	if err != nil {
+		slackMessage = "could not parse ngrok response"
+		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
+		return
+	}
+
+	// yay! we can actually send the ssh connection string
+	ngrokUrl, _ := url.Parse(ngrok.Tunnels[0].PublicUrl)
+	if err != nil {
+		slackMessage = "could not parse ngrok url"
+		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
+		return
+	}
+
+	slackMessage = fmt.Sprintf("`ssh -p %s pi@%s`", ngrokUrl.Port(), ngrokUrl.Hostname())
+	s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
 }
