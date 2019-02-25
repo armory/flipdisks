@@ -66,16 +66,25 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 	}
 
 	if strings.HasPrefix(rawMsg, s.getMyUserIdFormatted()) {
-		if strings.Contains(strings.ToLower(rawMsg), "ssh") || strings.Contains(strings.ToLower(rawMsg), "deploy") {
-			s.respondWithSSHConnectionString(slackEvent.Msg.Channel)
-			return
-		}
+		msg := strings.TrimSpace(strings.TrimPrefix(rawMsg, s.getMyUserIdFormatted()))
 
-		if rawMsg == "" {
-			return // let's just ignore it if we don't have anything to display on the board
-		}
+		if strings.HasPrefix(msg, "settings ") || strings.HasPrefix(msg, "set ") {
+			msg = strings.TrimSpace(strings.TrimPrefix(msg, "settings"))
+			msg = strings.TrimSpace(strings.TrimPrefix(msg, "set"))
 
-		rawMsg = s.editSettings(rawMsg, board, slackEvent)
+			if strings.Contains(strings.ToLower(msg), "ssh") || strings.Contains(strings.ToLower(msg), "deploy") {
+				s.respondWithSSHConnectionString(slackEvent.Msg.Channel)
+				return
+			}
+
+			if msg == "" {
+				return // let's just ignore it if we don't have anything to display on the board
+			}
+
+			rawMsg = s.editSettings(msg, board, slackEvent)
+		} else {
+			rawMsg = fmt.Sprintf("@%s %s", s.RTM.GetInfo().User.Name, msg)
+		}
 	}
 
 	fmt.Printf("Raw Slack Message: %+v\n", rawMsg)
@@ -101,7 +110,7 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 
 func (s *Slack) editSettings(rawMsg string, board *flipboard.Flipboard, event *slack.MessageEvent) string {
 	// remove my userId from the message
-	cleanMsg := strings.Replace(rawMsg, s.getMyUserIdFormatted(), "", -1)
+	cleanMsg := strings.TrimSpace(strings.Replace(rawMsg, s.getMyUserIdFormatted(), "", -1))
 	settings := strings.Split(strings.TrimSpace(cleanMsg), " ")
 
 	settingName := settings[0]
@@ -130,7 +139,7 @@ func (s *Slack) editSettings(rawMsg string, board *flipboard.Flipboard, event *s
 	}
 
 	s.respondWithSettingsHelpMessage(event.Msg.Channel)
-	return "received an unknown setting"
+	return "error: received an unknown setting: `" + settingName + "`"
 }
 
 func (s *Slack) getMyUserIdFormatted() string {
@@ -231,7 +240,7 @@ fill:         # ("", true/false) leave blank for autofill, or select your own fi
 
 func (s *Slack) respondWithSettingsHelpMessage(channelId string) {
 	t, _ := template.New("help").Parse("```" + `You can change settings of the bot by saying:
-	@{{.Username}} <setting_name> <setting_val>
+	@{{.Username}} settings <setting_name> <setting_val>
 
 Available Settings:
 ---
@@ -256,7 +265,7 @@ func (s *Slack) respondWithSSHConnectionString(channelId string) {
 
 	ngrokResp, err := http.Get("http://localhost:4040/api/tunnels")
 	if err != nil || ngrokResp == nil {
-		slackMessage = "local ngrok could not be reached"
+		slackMessage = "error: `local ngrok could not be reached`"
 		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
 		return
 	}
@@ -265,7 +274,7 @@ func (s *Slack) respondWithSSHConnectionString(channelId string) {
 
 	ngrokBody, err := ioutil.ReadAll(ngrokResp.Body)
 	if err != nil {
-		slackMessage = "could not read ngrok response"
+		slackMessage = "error: `could not read ngrok response`"
 		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
 		return
 	}
@@ -279,7 +288,7 @@ func (s *Slack) respondWithSSHConnectionString(channelId string) {
 
 	err = json.Unmarshal(ngrokBody, &ngrok)
 	if err != nil {
-		slackMessage = "could not parse ngrok response"
+		slackMessage = "error: `could not parse ngrok response`"
 		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
 		return
 	}
@@ -287,7 +296,7 @@ func (s *Slack) respondWithSSHConnectionString(channelId string) {
 	// yay! we can actually send the ssh connection string
 	ngrokUrl, _ := url.Parse(ngrok.Tunnels[0].PublicUrl)
 	if err != nil {
-		slackMessage = "could not parse ngrok url"
+		slackMessage = "error: `could not parse ngrok url`"
 		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
 		return
 	}
