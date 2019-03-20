@@ -67,6 +67,11 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 
 	if strings.HasPrefix(rawMsg, s.getMyUserIdFormatted()) {
 		msg := strings.TrimSpace(strings.TrimPrefix(rawMsg, s.getMyUserIdFormatted()))
+		
+		if strings.ToLower(msg) == "help" {
+			s.respondWithHelpMsg(slackEvent.Msg.Channel)
+			return
+		}
 
 		if strings.HasPrefix(msg, "settings ") || strings.HasPrefix(msg, "set ") {
 			msg = strings.TrimSpace(strings.TrimPrefix(msg, "settings"))
