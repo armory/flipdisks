@@ -33,8 +33,15 @@ ssh-copy-id pi@192.168.86.26  # add your key for easy login
 
 
 # Tips and Tricks
-### flipdisk-controller deamon
+## flipdisk-controller deamon
 To check on the status on the service, you can do
 ```bash
 journalctl -f -u flipdisk.service
+```
+
+## Add some other user's key
+You can use your public github key as auth!
+Get someone to log you in and then you can do:
+```bash
+curl https://github.com/your_github_username.keys >> ~/.ssh/authorized_keys
 ```
