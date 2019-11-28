@@ -21,7 +21,7 @@ func main() {
 	countdownDate := flag.String("countdown", "", fmt.Sprintf("Specify the countdown date in YYYY-MM-DD format"))
 	flag.Parse()
 
-	log.Infof("listening on port %s", port)
+	log.Infof("listening on port %s", *port)
 
 	g, err := github.New(github.Token(*githubToken))
 	if err != nil {
