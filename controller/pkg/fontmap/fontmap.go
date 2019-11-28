@@ -62,9 +62,9 @@ func AddKerning(letter Letter, amountOfKerning int) Letter {
 	}
 
 	for rowIndex := range letter {
-			for j := 0; j < amountOfKerning; j++ {
-				letter[rowIndex] = append(letter[rowIndex], 0)
-			}
+		for j := 0; j < amountOfKerning; j++ {
+			letter[rowIndex] = append(letter[rowIndex], 0)
+		}
 	}
 
 	return letter

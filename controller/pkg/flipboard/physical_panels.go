@@ -110,12 +110,12 @@ func (b *Flipboard) SetAll(val bool) {
 	}
 }
 
-func (b *Flipboard) GetPanel(x, y int) (*panel.Panel) {
+func (b *Flipboard) GetPanel(x, y int) *panel.Panel {
 	panels := *b.panels
 	return &panels[x][y]
 }
 
-func (b *Flipboard) SendPanelByPanel() () {
+func (b *Flipboard) SendPanelByPanel() {
 	for y, row := range *b.panels {
 		for x, p := range row {
 			//p.PrintState()
@@ -127,7 +127,7 @@ func (b *Flipboard) SendPanelByPanel() () {
 	}
 }
 
-func (b *Flipboard) SendAllPanelsAtOnce() () {
+func (b *Flipboard) SendAllPanelsAtOnce() {
 	for y, row := range *b.panels {
 		for x, p := range row {
 			//p.PrintState()

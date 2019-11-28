@@ -38,8 +38,8 @@ func main() {
 		PanelWidth:               28,
 		PanelHeight:              7,
 		PhysicallyDisplayedWidth: 7,
-		Port: *port,
-		Baud: *baud,
+		Port:                     *port,
+		Baud:                     *baud,
 	}
 
 	panelLayout := [][]flipboard.PanelAddress{

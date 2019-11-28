@@ -77,7 +77,6 @@ func TestAddKerning(t *testing.T) {
 			expected:        Letter{},
 		},
 
-
 		{
 			letter: Letter{
 				Row{},
@@ -147,7 +146,6 @@ func TestAddKerning(t *testing.T) {
 				Row{1},
 			},
 		},
-
 
 		{
 			letter: Letter{
@@ -309,7 +307,6 @@ func TestRender(t *testing.T) {
 				Row{1, 1, 1},
 			},
 		}},
-
 	}
 	for index, testCase := range tests {
 		got := Render(testCase.message)

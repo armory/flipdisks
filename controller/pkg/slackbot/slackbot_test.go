@@ -101,4 +101,3 @@ func TestSplitMessageAndOptions(t *testing.T) {
 		})
 	}
 }
-

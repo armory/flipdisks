@@ -30,7 +30,7 @@ type FlipboardMessageOptions struct {
 
 func GetDefaultOptions() FlipboardMessageOptions {
 	return FlipboardMessageOptions{
-		DisplayTime:      int(5 * (time.Second / time.Millisecond)),	// stored in ms
+		DisplayTime:      int(5 * (time.Second / time.Millisecond)), // stored in ms
 		Inverted:         false,
 		BWThreshold:      140, // magic
 		Fill:             "",
