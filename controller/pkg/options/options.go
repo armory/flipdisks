@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/armory/flipdisks/controller/pkg/virtualboard"
+	"flipdisks/pkg/virtualboard"
 	"gopkg.in/yaml.v2"
 )
 

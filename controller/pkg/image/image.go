@@ -17,8 +17,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/armory/flipdisks/controller/pkg/fontmap"
-	"github.com/armory/flipdisks/controller/pkg/virtualboard"
+	"flipdisks/pkg/fontmap"
+	"flipdisks/pkg/virtualboard"
 	"github.com/nfnt/resize"
 	log "github.com/sirupsen/logrus"
 )

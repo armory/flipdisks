@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/armory/flipdisks/controller/pkg/flipboard"
-	"github.com/armory/flipdisks/controller/pkg/github"
-	"github.com/armory/flipdisks/controller/pkg/slackbot"
+	"flipdisks/pkg/flipboard"
+	"flipdisks/pkg/github"
+	"flipdisks/pkg/slackbot"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -16,21 +16,18 @@ func main() {
 
 	port := flag.String("p", "/dev/tty.SLAB_USBtoUART", "the serial port, empty string to simulate")
 	baud := flag.Int("b", 9600, "baud rate of port")
-
-	var slackToken string
-	flag.StringVar(&slackToken, "slack-token", "", "Go get a slack token")
-
-	var githubToken string
-	flag.StringVar(&githubToken, "github-token", "", "Go get a github token")
-
-	var countdownDate string
-	flag.StringVar(&countdownDate, "countdown", "", fmt.Sprintf("Specify the countdown date in YYYY-MM-DD format"))
+	slackToken := flag.String("slack-token", "", "Go get a slack token")
+	githubToken := flag.String("github-token", "", "Go get a github token")
+	countdownDate := flag.String("countdown", "", fmt.Sprintf("Specify the countdown date in YYYY-MM-DD format"))
 	flag.Parse()
 
-	g, err := github.New(github.Token(githubToken))
+	log.Infof("listening on port %s", port)
+
+	g, err := github.New(github.Token(*githubToken))
 	if err != nil {
 		log.Error("Could not create githubClient, hopefully everything will work!")
 	}
+
 	githubEmojiLookup, err := g.GetEmojis()
 	if err != nil {
 		log.Error("Could not get emojis from Github", err)
@@ -58,17 +55,17 @@ func main() {
 		log.Fatal("couldn't create flipboard: " + err.Error())
 	}
 
-	if countdownDate != "" {
-		flipboard.SetCountdownClock(board, countdownDate)
+	if *countdownDate != "" {
+		_ = flipboard.SetCountdownClock(board, *countdownDate)
 	}
 
-	slack := slackbot.NewSlack(slackToken, githubEmojiLookup)
+	slack := slackbot.NewSlack(*slackToken, githubEmojiLookup)
 
 	go slack.StartSlackListener(board)
 
 	go flipboard.Play(board)
 
-	// we're actually going to just block forever so the program stays alive
+	// we're going to just block forever so the program stays alive
 	var wg sync.WaitGroup
 	wg.Add(1)
 	wg.Wait()

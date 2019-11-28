@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/armory/flipdisks/controller/pkg/virtualboard"
+	"flipdisks/pkg/virtualboard"
 	"github.com/go-test/deep"
 )
 

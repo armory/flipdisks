@@ -4,10 +4,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/armory/flipdisks/controller/pkg/flipboard"
-	"github.com/armory/flipdisks/controller/pkg/fontmap"
-	"github.com/armory/flipdisks/controller/pkg/options"
-	"github.com/armory/flipdisks/controller/pkg/virtualboard"
+	"flipdisks/pkg/flipboard"
+	"flipdisks/pkg/fontmap"
+	"flipdisks/pkg/options"
+	"flipdisks/pkg/virtualboard"
 	"github.com/kr/pty"
 )
 

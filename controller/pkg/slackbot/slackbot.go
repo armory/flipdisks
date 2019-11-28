@@ -12,9 +12,9 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/armory/flipdisks/controller/pkg/flipboard"
-	"github.com/armory/flipdisks/controller/pkg/github"
-	"github.com/armory/flipdisks/controller/pkg/options"
+	"flipdisks/pkg/flipboard"
+	"flipdisks/pkg/github"
+	"flipdisks/pkg/options"
 	"github.com/nlopes/slack"
 )
 
@@ -67,7 +67,7 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 
 	if strings.HasPrefix(rawMsg, s.getMyUserIdFormatted()) {
 		msg := strings.TrimSpace(strings.TrimPrefix(rawMsg, s.getMyUserIdFormatted()))
-		
+
 		if strings.ToLower(msg) == "help" {
 			s.respondWithHelpMsg(slackEvent.Msg.Channel)
 			return

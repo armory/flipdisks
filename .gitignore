@@ -16,8 +16,6 @@
 # Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
 .glide/
 
-server/vendor/*
-controller/vendor/*
 controller/build/
 controller/db.json/
 

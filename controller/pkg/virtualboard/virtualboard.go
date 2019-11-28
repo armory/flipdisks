@@ -1,6 +1,6 @@
 package virtualboard
 
-import "github.com/armory/flipdisks/controller/pkg/fontmap"
+import "flipdisks/pkg/fontmap"
 
 type VirtualBoard []fontmap.Row
 
