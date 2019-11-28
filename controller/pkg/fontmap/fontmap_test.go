@@ -320,3 +320,31 @@ func TestRender(t *testing.T) {
 		}
 	}
 }
+
+func TestLetter_String(t *testing.T) {
+	tests := []struct {
+		name   string
+		letter Letter
+		want   string
+	}{
+		{
+			name: "simple",
+			letter: Letter{
+				Row{1, 0, 1, 0, 1, 1},
+				Row{0, 0, 0, 0, 1, 1},
+				Row{1, 0, 1, 1, 1, 0},
+			},
+			want: `⚫️⚪️⚫️⚪️⚫️⚫️
+⚪️⚪️⚪️⚪️⚫️⚫️
+⚫️⚪️⚫️⚫️⚫️⚪️
+`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.letter.String(); got != tt.want {
+				t.Errorf("GOT: \n'%v'\nWANT:\n'%v'", got, tt.want)
+			}
+		})
+	}
+}
