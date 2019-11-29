@@ -179,7 +179,7 @@ func (s *Slack) renderSlackUsernames(msg string) string {
 var slackEmojiLookup map[string]string
 
 func (s *Slack) renderSlackEmojis(msg string) string {
-	var err error
+	var err errorr
 
 	if slackEmojiLookup == nil {
 		slackEmojiLookup, err = s.RTM.GetEmoji()
