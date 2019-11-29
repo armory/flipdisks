@@ -3,6 +3,8 @@ package fontmap
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateSpace(t *testing.T) {
@@ -339,9 +341,7 @@ func TestLetter_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.letter.String(); got != tt.want {
-				t.Errorf("GOT: \n'%v'\nWANT:\n'%v'", got, tt.want)
-			}
+			assert.Equal(t, tt.want, tt.letter.String())
 		})
 	}
 }
