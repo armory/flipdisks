@@ -4,7 +4,3 @@ go:
   - "1.13"
 
 script: ./bin/test-controller.sh
-
-cache:
-  directories:
-  - controller/vendor
