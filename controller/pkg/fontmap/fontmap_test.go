@@ -1,10 +1,9 @@
 package fontmap
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateSpace(t *testing.T) {
@@ -338,10 +337,29 @@ func TestLetter_String(t *testing.T) {
 ⚫️⚪️⚫️⚫️⚫️⚪️
 `,
 		},
+		{
+			name: "numbers >= 1 are black",
+			letter: Letter{
+				Row{1, 0, 1, 0, 2, 3},
+				Row{0, 0, 0, 0, 5, 4},
+				Row{1, 0, 1, 10, 6, 0},
+			},
+			want: `⚫️⚪️⚫️⚪️⚫️⚫️
+⚪️⚪️⚪️⚪️⚫️⚫️
+⚫️⚪️⚫️⚫️⚫️⚪️
+`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.letter.String())
+			got := tt.letter.String()
+			if got != tt.want {
+				fmt.Println("expected")
+				fmt.Println(tt.want)
+				fmt.Println("got")
+				fmt.Println(got)
+				t.Fail()
+			}
 		})
 	}
 }

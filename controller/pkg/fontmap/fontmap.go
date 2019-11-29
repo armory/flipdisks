@@ -28,7 +28,7 @@ func (letter Letter) String() string {
 	var out string
 	for _, row := range letter {
 		for _, cell := range row {
-			if cell == 1 {
+			if cell >= 1 {
 				out = out + "⚫️"
 			} else {
 				out = out + "⚪️"
