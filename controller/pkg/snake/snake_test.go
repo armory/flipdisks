@@ -125,7 +125,9 @@ func Test_addEgg(t *testing.T) {
 
 func TestSnake_addSnake(t *testing.T) {
 	type fields struct {
-		board virtualboard.VirtualBoard
+		board       virtualboard.VirtualBoard
+		tailOffset  int
+		snakeLength int
 	}
 	tests := []struct {
 		name          string
@@ -135,6 +137,8 @@ func TestSnake_addSnake(t *testing.T) {
 		{
 			name: "adds a snake on a 11x11",
 			fields: fields{
+				tailOffset:  2,
+				snakeLength: 3,
 				board: virtualboard.VirtualBoard{
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -167,7 +171,9 @@ func TestSnake_addSnake(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Snake{
-				board: tt.fields.board,
+				board:       tt.fields.board,
+				tailOffset:  tt.fields.tailOffset,
+				snakeLength: tt.fields.snakeLength,
 			}
 
 			s.addSnake()

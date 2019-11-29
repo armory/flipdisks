@@ -13,10 +13,10 @@ const (
 	eggSpace       = 3
 )
 
-const snakeLength = 3
-
 type Snake struct {
-	board virtualboard.VirtualBoard
+	board       virtualboard.VirtualBoard
+	tailOffset  int
+	snakeLength int
 }
 
 func New() {
@@ -28,7 +28,9 @@ func New() {
 	}
 
 	snake := Snake{
-		board: board,
+		board:       board,
+		tailOffset:  2,
+		snakeLength: 3,
 	}
 
 	snake.addSnake()
@@ -38,13 +40,12 @@ func New() {
 func (s *Snake) addSnake() {
 	boardHeight := len(s.board[0])
 
-	tailOffset := 2
-	headX := snakeLength + tailOffset - 1
+	headX := s.snakeLength + s.tailOffset - 1
 	headY := boardHeight / 2
 	s.board[headY][headX] = snakeHeadSpace
 
 	bodyX := headX
-	for bodyRemaining := snakeLength - 1; bodyRemaining > 0; bodyRemaining-- {
+	for bodyRemaining := s.snakeLength - 1; bodyRemaining > 0; bodyRemaining-- {
 		bodyX--
 		s.board[headY][bodyX] = snakeBodySpace
 	}
