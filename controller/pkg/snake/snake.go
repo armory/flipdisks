@@ -16,7 +16,7 @@ const (
 const snakeLength = 3
 
 type Snake struct {
-
+	board virtualboard.VirtualBoard
 }
 
 func New() {
@@ -27,31 +27,32 @@ func New() {
 		{0, 0, 0, 0},
 	}
 
-	addSnake(&board)
-	addEgg(&board)
+	snake := Snake{
+		board: board,
+	}
+
+	snake.addSnake()
+	snake.addEgg()
 }
 
-func addSnake(boardPointer *virtualboard.VirtualBoard) {
-	board := *boardPointer
-	boardHeight := len(board[0])
+func (s *Snake) addSnake() {
+	boardHeight := len(s.board[0])
 
 	tailOffset := 2
 	headX := snakeLength + tailOffset - 1
 	headY := boardHeight / 2
-	board[headY][headX] = snakeHeadSpace
+	s.board[headY][headX] = snakeHeadSpace
 
 	bodyX := headX
 	for bodyRemaining := snakeLength - 1; bodyRemaining > 0; bodyRemaining-- {
 		bodyX--
-		board[headY][bodyX] = snakeBodySpace
+		s.board[headY][bodyX] = snakeBodySpace
 	}
 }
 
-
-func addEgg(boardPointer *virtualboard.VirtualBoard) bool {
-	board := *boardPointer
-	boardLength := len(board)
-	boardHeight := len(board[0])
+func (s *Snake) addEgg() bool {
+	boardLength := len(s.board)
+	boardHeight := len(s.board[0])
 
 	// let's just try to place it somewhere near an empty area
 	// we'll try x first, if that doesn't work, move down a row and try x again
@@ -62,8 +63,8 @@ func addEgg(boardPointer *virtualboard.VirtualBoard) bool {
 
 	var xTries, yTries int
 	for {
-		if board[eggX][eggY] == emptySpace {
-			board[eggX][eggY] = 1
+		if s.board[eggX][eggY] == emptySpace {
+			s.board[eggX][eggY] = 1
 			return false
 		} else {
 			eggX = (eggX + 1) % boardLength
