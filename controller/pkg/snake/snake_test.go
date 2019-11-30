@@ -2,6 +2,7 @@ package snake
 
 import (
 	"container/ring"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -10,200 +11,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//func Test_addEgg(t *testing.T) {
-//	type fields struct {
-//		board virtualboard.VirtualBoard
-//	}
+//func TestNew(t *testing.T) {
 //	tests := []struct {
-//		name             string
-//		fields           fields
-//		expectedGameOver bool
-//		expectedBoard    virtualboard.VirtualBoard
+//		name string
 //	}{
 //		{
-//			name: "it can find a spot for an egg on an empty board",
-//			fields: fields{
-//				board: virtualboard.VirtualBoard{
-//					{0, 0, 0, 0},
-//					{0, 0, 0, 0},
-//					{0, 0, 0, 0},
-//					{0, 0, 0, 0},
-//				},
-//			},
-//			expectedGameOver: false,
-//			expectedBoard: virtualboard.VirtualBoard{
-//				{0, 0, 0, 0},
-//				{0, 0, 0, 1},
-//				{0, 0, 0, 0},
-//				{0, 0, 0, 0},
-//			},
-//		},
-//
-//		{
-//			name: "it still works when the board is 50% full horizontally",
-//			fields: fields{
-//				board: virtualboard.VirtualBoard{
-//					{0, 0, 0, 0},
-//					{0, 0, 0, 0},
-//					{1, 1, 1, 1},
-//					{1, 1, 1, 1},
-//				},
-//			},
-//			expectedGameOver: false,
-//			expectedBoard: virtualboard.VirtualBoard{
-//				{0, 0, 0, 1},
-//				{0, 0, 0, 0},
-//				{1, 1, 1, 1},
-//				{1, 1, 1, 1},
-//			},
-//		},
-//		{
-//			name: "it still works when the board is 50% full vertically",
-//			fields: fields{
-//				board: virtualboard.VirtualBoard{
-//					{0, 0, 1, 1},
-//					{0, 0, 1, 1},
-//					{0, 0, 1, 1},
-//					{0, 0, 1, 1},
-//				},
-//			},
-//			expectedGameOver: false,
-//			expectedBoard: virtualboard.VirtualBoard{
-//				{1, 0, 1, 1},
-//				{0, 0, 1, 1},
-//				{0, 0, 1, 1},
-//				{0, 0, 1, 1},
-//			},
-//		},
-//		{
-//			name: "it still works when the board is has only 1 spot left",
-//			fields: fields{
-//				board: virtualboard.VirtualBoard{
-//					{1, 1, 1, 1},
-//					{1, 1, 1, 1},
-//					{1, 1, 0, 1},
-//					{1, 1, 1, 1},
-//				},
-//			},
-//			expectedGameOver: false,
-//			expectedBoard: virtualboard.VirtualBoard{
-//				{1, 1, 1, 1},
-//				{1, 1, 1, 1},
-//				{1, 1, 1, 1},
-//				{1, 1, 1, 1},
-//			},
-//		},
-//		{
-//			name: "if a full board is found, game is over",
-//			fields: fields{
-//				board: virtualboard.VirtualBoard{
-//					{1, 1, 1, 1},
-//					{1, 1, 1, 1},
-//					{1, 1, 1, 1},
-//					{1, 1, 1, 1},
-//				},
-//			},
-//			expectedGameOver: true,
-//			expectedBoard: virtualboard.VirtualBoard{
-//				{1, 1, 1, 1},
-//				{1, 1, 1, 1},
-//				{1, 1, 1, 1},
-//				{1, 1, 1, 1},
-//			},
+//			name: "play",
 //		},
 //	}
 //	for _, tt := range tests {
 //		t.Run(tt.name, func(t *testing.T) {
-//			s := &Snake{
-//				board: tt.fields.board,
-//			}
-//
-//			assert.Equal(t, tt.expectedGameOver, s.addEgg(), "returning game status was not expected")
-//			assert.Equal(t, tt.expectedBoard, tt.fields.board)
+//			New()
 //		})
 //	}
 //}
-//
-//func TestSnake_startGame(t *testing.T) {
-//	type fields struct {
-//		board       virtualboard.VirtualBoard
-//		tailOffset  int
-//		snakeLength int
-//	}
-//	tests := []struct {
-//		name          string
-//		fields        fields
-//		expectedBoard virtualboard.VirtualBoard
-//	}{
-//		{
-//			name: "adds a snake on a 11x11",
-//			fields: fields{
-//				tailOffset:  2,
-//				snakeLength: 3,
-//				board: virtualboard.VirtualBoard{
-//					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//				},
-//			},
-//			expectedBoard: virtualboard.VirtualBoard{
-//				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//				{0, 0, 2, 2, 1, 0, 0, 0, 3, 0, 0},
-//				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-//			},
-//		},
-//	}
-//	for _, tt := range tests {
-//		t.Run(tt.name, func(t *testing.T) {
-//			s := &Snake{
-//				board:       tt.fields.board,
-//				tailOffset:  tt.fields.tailOffset,
-//				snakeLength: tt.fields.snakeLength,
-//			}
-//
-//			s.startGame()
-//
-//			if !reflect.DeepEqual(tt.expectedBoard, tt.fields.board) {
-//				fmt.Println("expected")
-//				fmt.Println(tt.expectedBoard)
-//				fmt.Println("got")
-//				fmt.Println(tt.fields.board)
-//				t.Fail()
-//			}
-//		})
-//	}
-//}
-
-func TestNew(t *testing.T) {
-	tests := []struct {
-		name string
-	}{
-		{
-			name: "play",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			New()
-		})
-	}
-}
 
 func TestSnake_setupGame(t *testing.T) {
 	type fields struct {
@@ -247,19 +68,19 @@ func TestSnake_setupGame(t *testing.T) {
 				assert.Equal(t, sTemp.deathBoundaries, s.deathBoundaries)
 
 				// make sure GameBoard is what we expect
-				expectedGameBoard := &virtualboard.VirtualBoard{	// transposed because we're storing as [x][y]
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+				expectedGameBoard := (&virtualboard.VirtualBoard{
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				}
+					{0, 0, 1, 1, 1, 0, 0, 0, 3, 0, 0},
+					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				}).Transpose()
 				assert.Equalf(t, expectedGameBoard, s.GameBoard, "expected\n%s\ngot\n%s", expectedGameBoard, s.GameBoard)
 			},
 		},
@@ -476,7 +297,7 @@ func TestSnake_addEgg(t *testing.T) {
 			},
 			want: true,
 			expect: func(t *testing.T, s *Snake) {
-				assert.Equal(t, mapPoint{1, 3}, s.eggLoc)
+				assert.Equal(t, mapPoint{1, 2}, s.eggLoc)
 			},
 		},
 		{
@@ -567,6 +388,7 @@ func TestSnake_addEgg(t *testing.T) {
 					eggLoc:          tt.fields.eggLoc,
 					deathBoundaries: tt.fields.deathBoundaries,
 				}
+				s.GameBoard=virtualboard.New(s.boardWidth, s.boardHeight)
 				s.addOutsideBoundaries()
 
 				got := s.addEgg()
@@ -580,7 +402,7 @@ func TestSnake_addEgg(t *testing.T) {
 			}()
 
 			select {
-			case <-time.After(250 * time.Millisecond):
+			case <-time.After(500 * time.Millisecond):
 				t.Fatal("timed out trying to add an egg! fix it!")
 			case <-done:
 			}
@@ -831,6 +653,267 @@ func TestSnake_moveSnake(t *testing.T) {
 			s.nextTickDirection = tt.fields.nextTickDirection
 			s.moveSnake(tt.args.gotLonger)
 			tt.expect(t, s)
+		})
+	}
+}
+
+func TestSnake_Tick(t *testing.T) {
+	type fields struct {
+		boardHeight       int
+		boardWidth        int
+		startOffset       int
+		snakeLength       int
+		head              *ring.Ring
+		tail              *ring.Ring
+		nextTickDirection direction
+		eggLoc            mapPoint
+		deathBoundaries   deathBoundary
+		GameBoard         *virtualboard.VirtualBoard
+	}
+	type ticks struct {
+		nextDirection direction
+		assert        func(t *testing.T, s *Snake) bool
+		expectedBoard *virtualboard.VirtualBoard
+	}
+	tests := []struct {
+		name           string
+		fields         fields
+		ticks          []ticks
+		wantIsGameOver bool
+		wantGameWin    bool
+	}{
+		{
+			name: "simple game - do nothing",
+			fields: fields{
+				boardWidth:  11,
+				boardHeight: 11,
+				snakeLength: 3,
+				startOffset: 2,
+			},
+			ticks: []ticks{
+				{nextDirection: East},
+				{nextDirection: East},
+				{nextDirection: East},
+				{nextDirection: East},
+				{nextDirection: East},
+				{nextDirection: East},
+				{nextDirection: East},
+			},
+			wantIsGameOver: true,
+			wantGameWin:    false,
+		},
+		{
+			name: "simple game - moving around",
+			fields: fields{
+				boardWidth:  11,
+				boardHeight: 11,
+				snakeLength: 3,
+				startOffset: 2,
+			},
+			ticks: []ticks{
+				{
+					nextDirection: East,
+					expectedBoard: (virtualboard.VirtualBoard{
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 1, 1, 1, 0, 0, 3, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					}).Transpose(),
+				},
+				{
+					nextDirection: North,
+					expectedBoard: (virtualboard.VirtualBoard{
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 1, 1, 0, 0, 3, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					}).Transpose(),
+				},
+				{
+					nextDirection: North,
+					expectedBoard: (virtualboard.VirtualBoard{
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					}).Transpose(),
+				},
+				{
+					nextDirection: East,
+					expectedBoard: (virtualboard.VirtualBoard{
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					}).Transpose(),
+				},
+				{
+					nextDirection: East,
+					expectedBoard: (virtualboard.VirtualBoard{
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					}).Transpose(),
+				},
+				{
+					nextDirection: East,
+					expectedBoard: (virtualboard.VirtualBoard{
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					}).Transpose(),
+				},
+				{
+					nextDirection: South,
+					expectedBoard: (virtualboard.VirtualBoard{
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					}).Transpose(),
+				},
+				{
+					nextDirection: South,
+					expectedBoard: (virtualboard.VirtualBoard{
+						{0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					}).Transpose(),
+				},
+				{
+					nextDirection: West,
+					expectedBoard: (virtualboard.VirtualBoard{
+						{0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					}).Transpose(),
+				},
+				{
+					nextDirection: West,
+					expectedBoard: (virtualboard.VirtualBoard{
+						{0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					}).Transpose(),
+				},
+			},
+			wantIsGameOver: false,
+			wantGameWin:    false,
+		},
+	}
+	for _, tt := range tests {
+		if tt.name != "simple game - moving around" {
+			t.Log("WARNING!!! WE'RE SKIPPING THIS TEST! This was prob commited by accident", "snake_test.go:909-11/30/19-04:49")
+			continue
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Snake{
+				boardHeight:       tt.fields.boardHeight,
+				boardWidth:        tt.fields.boardWidth,
+				startOffset:       tt.fields.startOffset,
+				snakeLength:       tt.fields.snakeLength,
+				head:              tt.fields.head,
+				tail:              tt.fields.tail,
+				nextTickDirection: tt.fields.nextTickDirection,
+				eggLoc:            tt.fields.eggLoc,
+				deathBoundaries:   tt.fields.deathBoundaries,
+				GameBoard:         tt.fields.GameBoard,
+			}
+			s.setupGame()
+
+			var gotIsGameOver, gotGameWin bool
+
+			fmt.Printf("start:\n%s", s.GameBoard)
+			for i, tick := range tt.ticks {
+				gotIsGameOver, gotGameWin = s.Tick(tick.nextDirection)
+				fmt.Printf("tick # %d:\n%s", i, s.GameBoard)
+
+				if tick.expectedBoard != nil {
+					assert.Equal(t, tick.expectedBoard, s.GameBoard, "expected\n%s\ngot\n%s", tick.expectedBoard, s.GameBoard.String())
+				}
+
+				if tick.assert != nil {
+					tick.assert(t, s)
+				}
+			}
+
+			assert.Equal(t, tt.wantIsGameOver, gotIsGameOver, "gameOver?")
+			assert.Equal(t, tt.wantGameWin, gotGameWin, "won game?")
 		})
 	}
 }

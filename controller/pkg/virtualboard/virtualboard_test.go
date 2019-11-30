@@ -7,33 +7,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Helper function to convert source-coded matrices to data-encoded matrices
-// When drawing arrays in using {{}, {}} format, it's actually [y][x]
-// When accessing it everywhere else, we're doing [x][y]
-func transposeVirtualBoard(sourceCodedMatrix VirtualBoard) VirtualBoard {
-	dataEncodedMatrix := New(len(sourceCodedMatrix[0]), len(sourceCodedMatrix))
-
-	for x := 0; x < len(*dataEncodedMatrix); x++ {
-		for y := 0; y < len((*dataEncodedMatrix)[0]); y++ {
-			(*dataEncodedMatrix)[x][y] = sourceCodedMatrix[y][x]
-		}
-	}
-	return *dataEncodedMatrix
-}
-
 func TestVirtualBoard_String(t *testing.T) {
 	tests := []struct {
 		name  string
-		board VirtualBoard
+		board *VirtualBoard
 		want  string
 	}{
 		{
 			name: "draw black on first line",
-			board: transposeVirtualBoard(VirtualBoard{
+			board: (VirtualBoard{
 				{1, 1, 1, 1, 1},
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
-			}),
+			}).Transpose(),
 			want: strings.TrimPrefix(`
 ⚫️⚫️⚫️⚫️⚫️
 ⚪️⚪️⚪️⚪️⚪️
@@ -42,11 +28,11 @@ func TestVirtualBoard_String(t *testing.T) {
 		},
 		{
 			name: "draw black on left side",
-			board: transposeVirtualBoard(VirtualBoard{
+			board: (VirtualBoard{
 				{1, 0, 0, 0, 0},
 				{1, 0, 0, 0, 0},
 				{1, 0, 0, 0, 0},
-			}),
+			}).Transpose(),
 			want: strings.TrimPrefix(`
 ⚫️⚪️⚪️⚪️⚪️
 ⚫️⚪️⚪️⚪️⚪️
@@ -55,11 +41,11 @@ func TestVirtualBoard_String(t *testing.T) {
 		},
 		{
 			name: "numbers >= 1 are black",
-			board: transposeVirtualBoard(VirtualBoard{
+			board: (VirtualBoard{
 				{1, 0, 1, 0, 2, 3},
 				{0, 0, 0, 0, 5, 4},
 				{1, 0, 1, 10, 6, 0},
-			}),
+			}).Transpose(),
 			want: strings.TrimPrefix(`
 ⚫️⚪️⚫️⚪️⚫️⚫️
 ⚪️⚪️⚪️⚪️⚫️⚫️

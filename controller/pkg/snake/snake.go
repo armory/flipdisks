@@ -9,8 +9,8 @@ import (
 
 const (
 	emptySpace     = 0
-	snakeHeadSpace = 1
-	snakeBodySpace = 2
+	//snakeHeadSpace = 1
+	snakeBodySpace = 1
 	eggSpace       = 3
 )
 
@@ -89,7 +89,7 @@ func (s *Snake) setupGame() {
 
 		snakeBody.Value = point
 		s.deathBoundaries.Add(bodyX, bodyY)
-		gameBoard[int(point.x)][int(point.y)] = 1
+		gameBoard[int(point.x)][int(point.y)] = snakeBodySpace
 
 		s.tail = snakeBody
 
@@ -101,7 +101,7 @@ func (s *Snake) setupGame() {
 	// add an egg in the same place as where the head is, but on the East side
 	// adding 1 because it looks good
 	s.eggLoc = mapPoint{s.boardWidth - s.head.Value.(mapPoint).x + 1, bodyY}
-	gameBoard[int(s.eggLoc.x)][int(s.eggLoc.y)] = 1
+	gameBoard[int(s.eggLoc.x)][int(s.eggLoc.y)] = eggSpace
 
 	s.nextTickDirection = East
 }
@@ -152,6 +152,16 @@ func (b *deathBoundary) Remove(x, y int) {
 	delete(boundary[xPos(x)], yPos(y))
 }
 
+func (b *deathBoundary) IsBoundary(x, y int) bool {
+	_, exists := (*b)[xPos(x)]
+	if !exists {
+		return false
+	}
+
+	_, dead := (*b)[xPos(x)][yPos(y)]
+	return dead
+}
+
 func (s *Snake) Tick(nextDirection direction) (isGameOver, gameWin bool) {
 	s.nextTickDirection = nextDirection
 
@@ -175,12 +185,12 @@ func (s *Snake) Tick(nextDirection direction) (isGameOver, gameWin bool) {
 	return false, false
 }
 
-func (s *Snake) moveSnake(gotLonger bool) {
+func (s *Snake) moveSnake(getLonger bool) {
 	gameBoard := *s.GameBoard
 
-	if !gotLonger {
+	if !getLonger {
 		oldTail := s.tail.Value.(mapPoint)
-		gameBoard[oldTail.x][oldTail.y] = 0
+		gameBoard[oldTail.x][oldTail.y] = emptySpace
 		s.deathBoundaries.Remove(oldTail.x, oldTail.y)
 
 		s.tail = s.tail.Next()
@@ -188,28 +198,34 @@ func (s *Snake) moveSnake(gotLonger bool) {
 		// do nothing to the tail, lazy eval
 	}
 
-	oldHead := s.head.Value.(mapPoint)
-
-	var newHead mapPoint
-	switch s.nextTickDirection {
-	case North:
-		newHead = mapPoint{oldHead.x, oldHead.y - 1}
-	case South:
-		newHead = mapPoint{oldHead.x, oldHead.y + 1}
-	case East:
-		newHead = mapPoint{oldHead.x + 1, oldHead.y}
-	case West:
-		newHead = mapPoint{oldHead.x - 1, oldHead.y}
-	}
+	nextHead := s.nextHeadLoc()
 
 	s.head = s.head.Next()
-	s.head.Value = newHead
-	s.deathBoundaries.Add(newHead.x, newHead.y)
-	gameBoard[newHead.x][newHead.y] = 1
+	s.head.Value = nextHead
+	s.deathBoundaries.Add(nextHead.x, nextHead.y)
+	gameBoard[nextHead.x][nextHead.y] = snakeBodySpace
+}
+
+func (s *Snake) nextHeadLoc() mapPoint {
+	currentHead := s.head.Value.(mapPoint)
+
+	var nextHead mapPoint
+	switch s.nextTickDirection {
+	case North:
+		nextHead = mapPoint{currentHead.x, currentHead.y - 1}
+	case South:
+		nextHead = mapPoint{currentHead.x, currentHead.y + 1}
+	case East:
+		nextHead = mapPoint{currentHead.x + 1, currentHead.y}
+	case West:
+		nextHead = mapPoint{currentHead.x - 1, currentHead.y}
+	}
+	return nextHead
 }
 
 func (s *Snake) checkGameStatus() (isGameOver, gameWin bool) {
-	_, dead := s.deathBoundaries[xPos(s.head.Value.(mapPoint).x)][yPos(s.head.Value.(mapPoint).y)]
+	nextHead := s.nextHeadLoc()
+	dead := s.deathBoundaries.IsBoundary(nextHead.x, nextHead.y)
 	if dead {
 		return true, false
 	}
@@ -222,7 +238,9 @@ func (s *Snake) checkGameStatus() (isGameOver, gameWin bool) {
 }
 
 func (s *Snake) willGetEgg() bool {
-	if s.head.Value.(mapPoint).x == s.eggLoc.x && s.head.Value.(mapPoint).y == s.eggLoc.y {
+	nextHead := s.nextHeadLoc()
+
+	if nextHead.x == s.eggLoc.x && nextHead.y == s.eggLoc.y {
 		return true
 	}
 	return false
@@ -247,20 +265,22 @@ func (s *Snake) addEgg() bool {
 
 	// try placing an egg randomly, if we can't then lets just start iterating from that location
 	go func() {
-		eggX := rand.Intn(s.boardWidth)
-		eggY := rand.Intn(s.boardHeight)
+		x := rand.Intn(s.boardWidth)
+		y := rand.Intn(s.boardHeight)
 
 		for xTries := 0; xTries < s.boardWidth; xTries++ {
 			for yTries := 0; yTries < s.boardHeight; yTries++ {
-				_, hitBoundary := s.deathBoundaries[xPos(eggX)][yPos(eggY)]
-				if !hitBoundary {
-					s.eggLoc = mapPoint{x: eggX, y: eggY}
+				boundaryExists := s.deathBoundaries.IsBoundary(x, y)
+				if !boundaryExists {
+					s.eggLoc = mapPoint{x: x, y: y}
+					(*s.GameBoard)[x][y] = eggSpace
 					added <- struct{}{}
+					return // exit early
 				}
 
-				eggY = (eggY + 1) % s.boardHeight
+				y = (y + 1) % s.boardHeight
 			}
-			eggX = (eggX + 1) % s.boardWidth
+			x = (x + 1) % s.boardWidth
 		}
 	}()
 
