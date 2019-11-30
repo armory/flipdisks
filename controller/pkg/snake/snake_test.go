@@ -4,6 +4,7 @@ import (
 	"container/ring"
 	"fmt"
 	"testing"
+	"time"
 
 	"flipdisks/pkg/virtualboard"
 	"github.com/stretchr/testify/assert"
@@ -238,11 +239,11 @@ func TestSnake_setupGame(t *testing.T) {
 				assert.Equal(t, mapPoint{8, 5}, s.eggLoc)
 
 				// deathBoundaries and snake
-				sTemp := &Snake{boardHeight: 11, boardWidth: 11}
-				sTemp.addOutsideBoundaries() // tested somewhere else
-				sTemp.addBoundary(2, 5)      // snake
-				sTemp.addBoundary(3, 5)      // snake
-				sTemp.addBoundary(4, 5)      // snake
+				sTemp := &Snake{boardHeight: 11, boardWidth: 11, deathBoundaries: deathBoundary{}}
+				sTemp.addOutsideBoundaries()    // tested somewhere else
+				sTemp.deathBoundaries.Add(2, 5) // snake
+				sTemp.deathBoundaries.Add(3, 5) // snake
+				sTemp.deathBoundaries.Add(4, 5) // snake
 				assert.Equal(t, sTemp.deathBoundaries, s.deathBoundaries)
 
 				// make sure GameBoard is what we expect
@@ -281,7 +282,7 @@ func TestSnake_setupGame(t *testing.T) {
 	}
 }
 
-func TestSnake_addBoundary(t *testing.T) {
+func TestDeathBoundary_Add(t *testing.T) {
 	type fields struct {
 		deathBoundaries deathBoundary
 	}
@@ -297,7 +298,9 @@ func TestSnake_addBoundary(t *testing.T) {
 	}{
 		{
 			name:   "adds a boundary when empty",
-			fields: fields{},
+			fields: fields{
+				deathBoundaries: deathBoundary{},
+			},
 			args:   []args{{5, 10}},
 			expectations: func(t *testing.T, s *Snake) {
 				assert.Equal(t, deathBoundary{
@@ -307,7 +310,9 @@ func TestSnake_addBoundary(t *testing.T) {
 		},
 		{
 			name:   "adds multiple",
-			fields: fields{},
+			fields: fields{
+				deathBoundaries: deathBoundary{},
+			},
 			args: []args{
 				{5, 10},
 				{4, 10},
@@ -329,7 +334,7 @@ func TestSnake_addBoundary(t *testing.T) {
 			}
 
 			for _, arg := range tt.args {
-				s.addBoundary(arg.x, arg.y)
+				s.deathBoundaries.Add(arg.x, arg.y)
 			}
 
 			tt.expectations(t, s)
@@ -372,13 +377,153 @@ func TestSnake_addOutsideBoundaries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Snake{
-				boardHeight: tt.fields.boardHeight,
-				boardWidth:  tt.fields.boardWidth,
+				boardHeight:     tt.fields.boardHeight,
+				boardWidth:      tt.fields.boardWidth,
+				deathBoundaries: deathBoundary{},
 			}
 
 			s.addOutsideBoundaries()
 
 			tt.expectations(t, s)
+		})
+	}
+}
+
+func TestSnake_addEgg(t *testing.T) {
+	// this is a tad bit bigger than 4K which is 3840x2160
+	// that's pretty big...
+	largestSupportedBoardWidthHeight := 3840
+
+	type fields struct {
+		boardHeight     int
+		boardWidth      int
+		startOffset     int
+		snakeLength     int
+		eggLoc          mapPoint
+		deathBoundaries deathBoundary
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+		expect func(t *testing.T, s *Snake)
+	}{
+		{
+			name: "randomly places an egg",
+			fields: fields{
+				boardWidth:  5,
+				boardHeight: 5,
+			},
+			want: true,
+			expect: func(t *testing.T, s *Snake) {
+				assert.Equal(t, mapPoint{1, 3}, s.eggLoc)
+			},
+		},
+		{
+			name: "randomly places an egg in a really full board",
+			fields: fields{
+				boardWidth:  5,
+				boardHeight: 5,
+				deathBoundaries: deathBoundary{
+					0: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
+					1: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
+					2: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
+					3: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
+					4: {0: wallExists{}, 1: wallExists{}, 3: wallExists{}, 4: wallExists{}},
+				},
+			},
+			want: true,
+			expect: func(t *testing.T, s *Snake) {
+				assert.Equal(t, mapPoint{4, 2}, s.eggLoc)
+			},
+		},
+		{
+			name: "can't place an egg because the board is full",
+			fields: fields{
+				boardWidth:  5,
+				boardHeight: 5,
+				deathBoundaries: deathBoundary{
+					0: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
+					1: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
+					2: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
+					3: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
+					4: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
+				},
+			},
+			want:   false,
+			expect: func(t *testing.T, s *Snake) {},
+		},
+		{
+			name: "it can find that 1 spot in a very large board (essentially a load test)",
+			fields: fields{
+				boardWidth:  largestSupportedBoardWidthHeight,
+				boardHeight: largestSupportedBoardWidthHeight,
+				deathBoundaries: func() deathBoundary {
+					b := deathBoundary{}
+					for x := 0; x < largestSupportedBoardWidthHeight; x++ {
+						for y := 0; y < largestSupportedBoardWidthHeight; y++ {
+							if !(x == 393 && y == 488) {
+								b.Add(x, y)
+							}
+						}
+					}
+					return b
+				}(),
+			},
+			want: true,
+			expect: func(t *testing.T, s *Snake) {
+				assert.Equal(t, mapPoint{393, 488}, s.eggLoc)
+			},
+		},
+		{
+			name: "can't place an egg because the board is full in a really large board",
+			fields: fields{
+				boardWidth:  largestSupportedBoardWidthHeight,
+				boardHeight: largestSupportedBoardWidthHeight,
+				deathBoundaries: func() deathBoundary {
+					b := deathBoundary{}
+					for x := 0; x < largestSupportedBoardWidthHeight; x++ {
+						for y := 0; y < largestSupportedBoardWidthHeight; y++ {
+							b.Add(x, y)
+						}
+					}
+					return b
+				}(),
+			},
+			want:   false,
+			expect: func(t *testing.T, s *Snake) {},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			done := make(chan struct{})
+
+			go func() {
+				s := &Snake{
+					boardHeight:     tt.fields.boardHeight,
+					boardWidth:      tt.fields.boardWidth,
+					startOffset:     tt.fields.startOffset,
+					snakeLength:     tt.fields.snakeLength,
+					eggLoc:          tt.fields.eggLoc,
+					deathBoundaries: tt.fields.deathBoundaries,
+				}
+				s.addOutsideBoundaries()
+
+				got := s.addEgg()
+				if got != tt.want {
+					t.Errorf("addEgg() = %v, want %v", got, tt.want)
+				}
+
+				tt.expect(t, s)
+
+				done <- struct{}{}
+			}()
+
+			select {
+			case <-time.After(250 * time.Millisecond):
+				t.Fatal("timed out trying to add an egg! fix it!")
+			case <-done:
+			}
 		})
 	}
 }

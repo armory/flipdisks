@@ -2,6 +2,7 @@ package snake
 
 import (
 	"container/ring"
+	"math/rand"
 
 	"flipdisks/pkg/virtualboard"
 )
@@ -75,6 +76,7 @@ func (s *Snake) setupGame() {
 
 	gameBoard := *s.GameBoard
 
+	s.deathBoundaries = deathBoundary{}
 	s.addOutsideBoundaries()
 
 	bodyX := s.snakeLength + s.startOffset - 1 // subtract 1 because arrays start at 0
@@ -86,7 +88,7 @@ func (s *Snake) setupGame() {
 		point := mapPoint{bodyX, bodyY}
 
 		snakeBody.Value = point
-		s.addBoundary(bodyX, bodyY)
+		s.deathBoundaries.Add(bodyX, bodyY)
 		gameBoard[int(point.y)][int(point.x)] = 1
 
 		s.tail = snakeBody
@@ -105,108 +107,57 @@ func (s *Snake) setupGame() {
 }
 
 func (s *Snake) addOutsideBoundaries() {
-	// draw top
-	for i := -1; i < s.boardWidth+1; i++ {
-		s.addBoundary(-1, i)
-	}
-
-	// draw bottom
-	for i := -1; i < s.boardWidth+1; i++ {
-		s.addBoundary(s.boardHeight, i)
-	}
-
-	// draw left (would start from -1 to height +1, but that's double drawing corners)
-	for i := 0; i < s.boardHeight; i++ {
-		s.addBoundary(i, -1)
-	}
-
-	// draw right (would start from -1 to height +1, but that's double drawing corners)
-	for i := 0; i < s.boardHeight; i++ {
-		s.addBoundary(i, s.boardHeight)
-	}
-}
-
-func (s *Snake) addBoundary(x, y int) {
 	if s.deathBoundaries == nil {
 		s.deathBoundaries = deathBoundary{}
 	}
 
-	_, ok := s.deathBoundaries[xPos(x)]
-	if !ok {
-		s.deathBoundaries[xPos(x)] = map[yPos]wallExists{}
+	// draw top
+	for i := -1; i < s.boardWidth+1; i++ {
+		s.deathBoundaries.Add(-1, i)
 	}
 
-	s.deathBoundaries[xPos(x)][yPos(y)] = wallExists{}
+	// draw bottom
+	for i := -1; i < s.boardWidth+1; i++ {
+		s.deathBoundaries.Add(s.boardHeight, i)
+	}
+
+	// draw left (would start from -1 to height +1, but that's double drawing corners)
+	for i := 0; i < s.boardHeight; i++ {
+		s.deathBoundaries.Add(i, -1)
+	}
+
+	// draw right (would start from -1 to height +1, but that's double drawing corners)
+	for i := 0; i < s.boardHeight; i++ {
+		s.deathBoundaries.Add(i, s.boardHeight)
+	}
 }
 
-//func (s *Snake) startGame() {
-//	boardHeight := len(s.board)
-//	boardLength := len(s.board[0])
-//
-//	headX := s.snakeLength + s.tailOffset - 1
-//	headY := boardHeight / 2
-//	s.board[headY][headX] = snakeHeadSpace
-//
-//	bodyX := headX
-//	for bodyRemaining := s.snakeLength - 1; bodyRemaining > 0; bodyRemaining-- {
-//		bodyX--
-//		s.board[headY][bodyX] = snakeBodySpace
-//	}
-//
-//	s.board[headY][boardLength-headX+1] = eggSpace
-//}
-//
-//func (s *Snake) addEgg() bool {
-//	boardLength := len(s.board)
-//	boardHeight := len(s.board[0])
-//
-//	// let's just try to place it somewhere near an empty area
-//	// we'll try x first, if that doesn't work, move down a row and try x again
-//	// we've exhausted all possible positions, game over
-//
-//	eggX := rand.Intn(boardLength)
-//	eggY := rand.Intn(boardHeight)
-//
-//	var xTries, yTries int
-//	for {
-//		if s.board[eggX][eggY] == emptySpace {
-//			s.board[eggX][eggY] = eggSpace
-//			return false
-//		} else {
-//			eggX = (eggX + 1) % boardLength
-//			xTries++
-//
-//			if xTries >= boardLength {
-//				eggY = (eggY + 1) % boardLength
-//				yTries++
-//				xTries = rand.Intn(boardLength)
-//
-//				if yTries >= boardHeight {
-//					return true
-//				}
-//			}
-//		}
-//	}
-//}
+func (b *deathBoundary) Add(x, y int) {
+	boundary := *b
+	_, ok := boundary[xPos(x)]
+	if !ok {
+		boundary[xPos(x)] = map[yPos]wallExists{}
+	}
+
+	boundary[xPos(x)][yPos(y)] = wallExists{}
+}
 
 func (s *Snake) Tick() (isGameOver, gameWin bool) {
-	s.moveSnake(false)
-
 	isGameOver, gameWin = s.checkBoundaries()
 	if isGameOver {
 		return isGameOver, gameWin
 	}
 
-	gotEgg := s.gotEgg()
+	canGetEgg := s.willGetEgg()
 
-	if gotEgg == true {
+	if !canGetEgg {
+		s.moveSnake(false)
+	} else {
 		s.moveSnake(true)
 		ableToAddEgg := s.addEgg()
 		if !ableToAddEgg {
 			return true, true
 		}
-	} else {
-		s.moveSnake(false)
 	}
 
 	return false, false
@@ -229,12 +180,53 @@ func (s *Snake) checkBoundaries() (isGameOver, gameWin bool) {
 	return false, false
 }
 
-func (s *Snake) gotEgg() bool {
+func (s *Snake) willGetEgg() bool {
 	return false
 }
 
 func (s *Snake) addEgg() bool {
-	// remove old position of egg
-	// add in new egg randomly
-	return true
+	full := make(chan struct{})
+	added := make(chan struct{})
+
+	// let's make sure the board isn't full
+	go func() {
+		howFull := 0
+		for _, deathY := range s.deathBoundaries {
+			howFull = howFull + len(deathY)
+		}
+
+		// +2 because deathBoundaries are created outside the board (top/bottom left/right)
+		if howFull == (s.boardHeight+2)*(s.boardWidth+2) {
+			full <- struct{}{}
+		}
+	}()
+
+	// try placing an egg randomly, if we can't then lets just start iterating from that location
+	go func() {
+		eggX := rand.Intn(s.boardWidth)
+		eggY := rand.Intn(s.boardHeight)
+
+		for xTries := 0; xTries < s.boardWidth; xTries++ {
+			for yTries := 0; yTries < s.boardHeight; yTries++ {
+				_, hitBoundary := s.deathBoundaries[xPos(eggX)][yPos(eggY)]
+				if !hitBoundary {
+					s.eggLoc = mapPoint{x: eggX, y: eggY}
+					added <- struct{}{}
+				}
+
+				eggY = (eggY + 1) % s.boardHeight
+			}
+			eggX = (eggX + 1) % s.boardWidth
+		}
+	}()
+
+	// it's a race! which goroutine will finish first?
+	// yeah, goroutines aren't parallel, but for some reason it's faster 🤷
+	// something must not be 100% synchronous, so we're kind of relying on that hack
+	select {
+	case <-full:
+		return false
+	case <-added:
+		return true
+	}
 }
