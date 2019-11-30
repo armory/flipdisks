@@ -1,8 +1,12 @@
 package virtualboard
 
-import "flipdisks/pkg/fontmap"
+import (
+	"strings"
 
-// use the canvas coord system instead of cartesian like in math!
+	"flipdisks/pkg/fontmap"
+)
+
+// use the canvas coord system instead of cartesian, like in math!
 //   reason being is that it'a intuitive from a data perspective
 //   board[x][y] is how we'll be defining out data structure.
 //
@@ -28,19 +32,31 @@ func New(width, height int) *VirtualBoard {
 }
 
 // String is used to draw on the screen
+//   note: storage is transposed because we're doing [x][y]
 func (b *VirtualBoard) String() string {
 	board := *b
-	line := ""
-	for x := 0; x < len(board); x++ {
-		for y := 0; y < len(board[x]); y++ {
+
+	blackDot := "⚫️"
+	whiteDot := "⚪️"
+
+	var line strings.Builder
+
+	xLen := len(board)
+	yLen := len(board[0])
+	dotLen := len([]byte(blackDot)) // there's an extra 3 bytes for "️ Variation Selector-16" see https://emojipedia.org/variation-selector-16/
+	newLines := yLen + 1            // new line at the end
+	line.Grow(xLen*yLen*dotLen + newLines)
+
+	for y := 0; y < yLen; y++ { // do y first since we're drawing top down
+		for x := 0; x < xLen; x++ { // then left right
 			if board[x][y] >= 1 {
-				line += "⚫️"
+				line.WriteString(blackDot)
 			} else {
-				line += "⚪️"
+				line.WriteString(whiteDot)
 			}
 		}
-		line += "\n"
+		line.WriteString("\n")
 	}
 
-	return line
+	return line.String()
 }

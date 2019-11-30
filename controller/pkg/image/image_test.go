@@ -8,6 +8,7 @@ import (
 
 	"flipdisks/pkg/virtualboard"
 	"github.com/go-test/deep"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConvert(t *testing.T) {
@@ -29,11 +30,7 @@ func TestConvert(t *testing.T) {
 		t.Error(err)
 	}
 
-	if (*v).String() != string(expected) {
-		t.Error("images are not equal")
-		t.Errorf("Expected\n%s", expected)
-		t.Errorf("Got\n%s", v)
-	}
+	assert.Equalf(t, string(expected), (*v).String(), "expected\n%s\ngot\n%s", expected, (*v).String())
 }
 
 func TestGetPlainImageUrl(t *testing.T) {

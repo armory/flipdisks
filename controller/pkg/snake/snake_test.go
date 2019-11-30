@@ -2,7 +2,7 @@ package snake
 
 import (
 	"container/ring"
-	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -230,10 +230,10 @@ func TestSnake_setupGame(t *testing.T) {
 				snakeLength: 3,
 			},
 			expectations: func(t *testing.T, s *Snake) {
-				// snake heading east
+				// snake heading East
 				assert.Equal(t, mapPoint{4, 5}, s.head.Value)
 				assert.Equal(t, mapPoint{2, 5}, s.tail.Value)
-				assert.Equal(t, east, s.nextTickDirection)
+				assert.Equal(t, East, s.nextTickDirection)
 
 				// egg in the right spot
 				assert.Equal(t, mapPoint{8, 5}, s.eggLoc)
@@ -247,20 +247,20 @@ func TestSnake_setupGame(t *testing.T) {
 				assert.Equal(t, sTemp.deathBoundaries, s.deathBoundaries)
 
 				// make sure GameBoard is what we expect
-				expectedGameBoard := &virtualboard.VirtualBoard{
+				expectedGameBoard := &virtualboard.VirtualBoard{	// transposed because we're storing as [x][y]
+					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					{0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0},
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 				}
-				assert.Equal(t, expectedGameBoard, s.GameBoard, fmt.Sprintf("expected\n%s\ngot\n%s", expectedGameBoard, s.GameBoard))
+				assert.Equalf(t, expectedGameBoard, s.GameBoard, "expected\n%s\ngot\n%s", expectedGameBoard, s.GameBoard)
 			},
 		},
 	}
@@ -297,11 +297,11 @@ func TestDeathBoundary_Add(t *testing.T) {
 		expectations func(t *testing.T, s *Snake)
 	}{
 		{
-			name:   "adds a boundary when empty",
+			name: "adds a boundary when empty",
 			fields: fields{
 				deathBoundaries: deathBoundary{},
 			},
-			args:   []args{{5, 10}},
+			args: []args{{5, 10}},
 			expectations: func(t *testing.T, s *Snake) {
 				assert.Equal(t, deathBoundary{
 					5: {10: wallExists{}},
@@ -309,7 +309,7 @@ func TestDeathBoundary_Add(t *testing.T) {
 			},
 		},
 		{
-			name:   "adds multiple",
+			name: "adds multiple",
 			fields: fields{
 				deathBoundaries: deathBoundary{},
 			},
@@ -335,6 +335,66 @@ func TestDeathBoundary_Add(t *testing.T) {
 
 			for _, arg := range tt.args {
 				s.deathBoundaries.Add(arg.x, arg.y)
+			}
+
+			tt.expectations(t, s)
+		})
+	}
+}
+
+func TestDeathBoundary_Remove(t *testing.T) {
+	type fields struct {
+		deathBoundaries deathBoundary
+	}
+	type args struct {
+		x int
+		y int
+	}
+	tests := []struct {
+		name         string
+		fields       fields
+		args         []args
+		expectations func(t *testing.T, s *Snake)
+	}{
+		{
+			name: "removes a boundary point, but there's still y left",
+			fields: fields{
+				deathBoundaries: deathBoundary{
+					5: {10: wallExists{}, 11: wallExists{}},
+				},
+			},
+			args: []args{{5, 10}},
+			expectations: func(t *testing.T, s *Snake) {
+				assert.Equal(t, deathBoundary{
+					5: {11: wallExists{}},
+				}, s.deathBoundaries)
+			},
+		},
+		{
+			name: "removes a boundary x point, but no more x left",
+			fields: fields{
+				deathBoundaries: deathBoundary{
+					5:  {10: wallExists{}},
+					99: {1: wallExists{}},
+				},
+			},
+			args: []args{{5, 10}},
+			expectations: func(t *testing.T, s *Snake) {
+				assert.Equal(t, deathBoundary{
+					5:  {},
+					99: {1: wallExists{}},
+				}, s.deathBoundaries)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Snake{
+				deathBoundaries: tt.fields.deathBoundaries,
+			}
+
+			for _, arg := range tt.args {
+				s.deathBoundaries.Remove(arg.x, arg.y)
 			}
 
 			tt.expectations(t, s)
@@ -524,6 +584,253 @@ func TestSnake_addEgg(t *testing.T) {
 				t.Fatal("timed out trying to add an egg! fix it!")
 			case <-done:
 			}
+		})
+	}
+}
+
+func TestSnake_moveSnake(t *testing.T) {
+	type fields struct {
+		boardHeight       int
+		boardWidth        int
+		startOffset       int
+		snakeLength       int
+		head              *ring.Ring
+		tail              *ring.Ring
+		nextTickDirection direction
+		eggLoc            mapPoint
+		deathBoundaries   deathBoundary
+		GameBoard         *virtualboard.VirtualBoard
+	}
+	type args struct {
+		gotLonger bool
+	}
+	tests := []struct {
+		name       string
+		fields     fields
+		args       args
+		beforeTest func(s *Snake)
+
+		expect func(t *testing.T, s *Snake)
+	}{
+		{
+			name: "moves to the east and checks death",
+			fields: fields{
+				boardHeight:       11,
+				boardWidth:        11,
+				startOffset:       2,
+				snakeLength:       3,
+				nextTickDirection: East,
+			},
+			args: args{false},
+			expect: func(t *testing.T, s *Snake) {
+				assert.Equal(t, mapPoint{5, 5}, s.head.Value, "head is not in the correct pos")
+				_, exists := s.deathBoundaries[5][5]
+				assert.True(t, exists, "head is not setup as death")
+
+				assert.Equal(t, mapPoint{3, 5}, s.tail.Value, "tail is not in the correct pos")
+				_, exists = s.deathBoundaries[2][5]
+				assert.False(t, exists, "old tail is still set as death")
+
+				expectedGameBoard := strings.TrimPrefix(`
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚫️⚫️⚫️⚪️⚪️⚫️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+`, "\n")
+				assert.Equalf(t, expectedGameBoard, s.GameBoard.String(), "expected\n%s\ngot\n%s", expectedGameBoard, s.GameBoard)
+			},
+		},
+		{
+			name: "moves to the north",
+			fields: fields{
+				boardHeight:       11,
+				boardWidth:        11,
+				startOffset:       2,
+				snakeLength:       3,
+				nextTickDirection: North,
+			},
+			args: args{false},
+			expect: func(t *testing.T, s *Snake) {
+				assert.Equal(t, mapPoint{4, 4}, s.head.Value, "head is not in the correct pos")
+				assert.Equal(t, mapPoint{3, 5}, s.tail.Value, "tail is not in the correct pos")
+
+				expectedGameBoard := strings.TrimPrefix(`
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚫️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚫️⚫️⚪️⚪️⚪️⚫️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+`, "\n")
+				assert.Equalf(t, []byte(expectedGameBoard), []byte(s.GameBoard.String()), "expected\n%s\ngot\n%s", expectedGameBoard, s.GameBoard)
+			},
+		},
+		{
+			name: "moves to the south",
+			fields: fields{
+				boardHeight:       11,
+				boardWidth:        11,
+				startOffset:       2,
+				snakeLength:       3,
+				nextTickDirection: South,
+			},
+			args: args{false},
+			expect: func(t *testing.T, s *Snake) {
+				assert.Equal(t, mapPoint{4, 6}, s.head.Value, "head is not in the correct pos")
+				assert.Equal(t, mapPoint{3, 5}, s.tail.Value, "tail is not in the correct pos")
+
+				expectedGameBoard := strings.TrimPrefix(`
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚫️⚫️⚪️⚪️⚪️⚫️⚪️⚪️
+⚪️⚪️⚪️⚪️⚫️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+`, "\n")
+				assert.Equalf(t, []byte(expectedGameBoard), []byte(s.GameBoard.String()), "expected\n%s\ngot\n%s", expectedGameBoard, s.GameBoard)
+			},
+		},
+		{
+			name: "moves to the west",
+			fields: fields{
+				boardHeight:       11,
+				boardWidth:        11,
+				startOffset:       2,
+				snakeLength:       3,
+				nextTickDirection: West,
+			},
+			beforeTest: func(s *Snake) {
+				s.nextTickDirection = South
+				s.moveSnake(false)
+				s.nextTickDirection = South
+				s.moveSnake(false)
+				s.nextTickDirection = South
+				s.moveSnake(false)
+			},
+			args: args{false},
+			expect: func(t *testing.T, s *Snake) {
+				assert.Equal(t, mapPoint{3, 8}, s.head.Value, "head is not in the correct pos")
+				assert.Equal(t, mapPoint{4, 7}, s.tail.Value, "tail is not in the correct pos")
+
+				expectedGameBoard := strings.TrimPrefix(`
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚫️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚫️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚫️⚫️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+`, "\n")
+				assert.Equalf(t, []byte(expectedGameBoard), []byte(s.GameBoard.String()), "expected\n%s\ngot\n%s", expectedGameBoard, s.GameBoard)
+			},
+		},
+		{
+			name: "moves to the west",
+			fields: fields{
+				boardHeight:       11,
+				boardWidth:        11,
+				startOffset:       2,
+				snakeLength:       3,
+				nextTickDirection: West,
+			},
+			beforeTest: func(s *Snake) {
+				s.nextTickDirection = South
+				s.moveSnake(false)
+				s.nextTickDirection = South
+				s.moveSnake(false)
+				s.nextTickDirection = South
+				s.moveSnake(false)
+			},
+			args: args{false},
+			expect: func(t *testing.T, s *Snake) {
+				assert.Equal(t, mapPoint{3, 8}, s.head.Value, "head is not in the correct pos")
+				assert.Equal(t, mapPoint{4, 7}, s.tail.Value, "tail is not in the correct pos")
+
+				expectedGameBoard := strings.TrimPrefix(`
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚫️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚫️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚫️⚫️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+`, "\n")
+				assert.Equalf(t, []byte(expectedGameBoard), []byte(s.GameBoard.String()), "expected\n%s\ngot\n%s", expectedGameBoard, s.GameBoard)
+			},
+		},
+		{
+			name: "moves to the east, got longer",
+			fields: fields{
+				boardHeight:       11,
+				boardWidth:        11,
+				startOffset:       2,
+				snakeLength:       3,
+				nextTickDirection: East,
+			},
+			args: args{true},
+			expect: func(t *testing.T, s *Snake) {
+				assert.Equal(t, mapPoint{5, 5}, s.head.Value)
+				assert.Equal(t, mapPoint{2, 5}, s.tail.Value)
+
+				expectedGameBoard := strings.TrimPrefix(`
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚫️⚫️⚫️⚫️⚪️⚪️⚫️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️⚪️
+`, "\n")
+				assert.Equalf(t, expectedGameBoard, s.GameBoard.String(), "expected\n%s\ngot\n%s", expectedGameBoard, s.GameBoard)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Snake{
+				boardHeight: tt.fields.boardHeight,
+				boardWidth:  tt.fields.boardWidth,
+				startOffset: tt.fields.startOffset,
+				snakeLength: tt.fields.snakeLength,
+			}
+			s.setupGame()
+			if tt.beforeTest != nil {
+				tt.beforeTest(s)
+			}
+			//fmt.Println(s.GameBoard)
+
+			s.nextTickDirection = tt.fields.nextTickDirection
+			s.moveSnake(tt.args.gotLonger)
+			tt.expect(t, s)
 		})
 	}
 }

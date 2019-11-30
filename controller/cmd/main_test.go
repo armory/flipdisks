@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 
 	"flipdisks/pkg/flipboard"
@@ -176,7 +175,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 	for index, testCase := range tests {
 		msgAsDots := fontmap.Render(testCase.message)
 		got := flipboard.CreateVirtualBoard(testCase.panelWidth, testCase.numberOfPanelsWide, msgAsDots, testCase.message)
-		if !assert.Equal(t, testCase.expect, got, fmt.Sprintf("expected\n%s\ngot\n%s", testCase.expect, got)) {
+		if !assert.Equalf(t, testCase.expect, got, "expected\n%s\ngot\n%s", testCase.expect, got) {
 			t.Errorf("Test case: %d", index)
 		}
 
@@ -269,7 +268,7 @@ func TestDisplayMessageToPanels(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// setup a psudo tty to use
 			_, tty, _ := pty.Open()
-			defer func() { tty.Close() }()
+			defer func() { _ = tty.Close() }()
 
 			panelInfo := flipboard.PanelInfo{
 				Baud:                     9600,

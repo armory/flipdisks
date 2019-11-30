@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"time"
 
-	"flipdisks/pkg/fontmap"
 	"flipdisks/pkg/virtualboard"
 	"github.com/nfnt/resize"
 	log "github.com/sirupsen/logrus"
@@ -45,11 +44,14 @@ func ConvertImageUrlToVirtualBoard(maxWidth, maxHeight uint, imgUrl string, inve
 }
 
 func convertImgToVirtualBoard(m image.Image, bounds image.Rectangle, invertImage bool, bwThreshold int) *virtualboard.VirtualBoard {
-	var board []fontmap.Row
+	board := virtualboard.New(bounds.Max.X, bounds.Max.Y)
+
+	// Looping over Y first and X second is more likely to result in better memory access patterns than X first and Y second.
+	//   - https://golang.org/pkg/image/
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		row := fontmap.Row{}
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			r, g, b, _ := m.At(x, y).RGBA()
+
 			// to get luminosity, we're going to use magic values from
 			// https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color
 			lum := 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
@@ -62,16 +64,14 @@ func convertImgToVirtualBoard(m image.Image, bounds image.Rectangle, invertImage
 			}
 
 			if flipdotPixelValue {
-				row = append(row, 1)
+				(*board)[x][y] = 1
 			} else {
-				row = append(row, 0)
+				(*board)[x][y] = 0
 			}
 		}
-		board = append(board, row)
 	}
 
-	v := virtualboard.VirtualBoard(board)
-	return &v
+	return board
 }
 
 type FlipboardGif struct {

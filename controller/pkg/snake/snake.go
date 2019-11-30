@@ -17,10 +17,10 @@ const (
 type direction int
 
 const (
-	north direction = iota
-	south
-	east
-	west
+	North direction = iota
+	South
+	East
+	West
 )
 
 type Snake struct {
@@ -65,7 +65,7 @@ func New() *Snake {
 
 	snake.setupGame()
 
-	_, _ = snake.Tick()
+	_, _ = snake.Tick(East)
 
 	return snake
 }
@@ -89,7 +89,7 @@ func (s *Snake) setupGame() {
 
 		snakeBody.Value = point
 		s.deathBoundaries.Add(bodyX, bodyY)
-		gameBoard[int(point.y)][int(point.x)] = 1
+		gameBoard[int(point.x)][int(point.y)] = 1
 
 		s.tail = snakeBody
 
@@ -98,12 +98,12 @@ func (s *Snake) setupGame() {
 		bodyX--
 	}
 
-	// add an egg in the same place as where the head is, but on the east side
+	// add an egg in the same place as where the head is, but on the East side
 	// adding 1 because it looks good
 	s.eggLoc = mapPoint{s.boardWidth - s.head.Value.(mapPoint).x + 1, bodyY}
-	gameBoard[int(s.eggLoc.y)][int(s.eggLoc.x)] = 1
+	gameBoard[int(s.eggLoc.x)][int(s.eggLoc.y)] = 1
 
-	s.nextTickDirection = east
+	s.nextTickDirection = East
 }
 
 func (s *Snake) addOutsideBoundaries() {
@@ -142,8 +142,20 @@ func (b *deathBoundary) Add(x, y int) {
 	boundary[xPos(x)][yPos(y)] = wallExists{}
 }
 
-func (s *Snake) Tick() (isGameOver, gameWin bool) {
-	isGameOver, gameWin = s.checkBoundaries()
+func (b *deathBoundary) Remove(x, y int) {
+	boundary := *b
+	_, found := boundary[xPos(x)]
+	if !found {
+		return // easy peasy
+	}
+
+	delete(boundary[xPos(x)], yPos(y))
+}
+
+func (s *Snake) Tick(nextDirection direction) (isGameOver, gameWin bool) {
+	s.nextTickDirection = nextDirection
+
+	isGameOver, gameWin = s.checkGameStatus()
 	if isGameOver {
 		return isGameOver, gameWin
 	}
@@ -164,23 +176,55 @@ func (s *Snake) Tick() (isGameOver, gameWin bool) {
 }
 
 func (s *Snake) moveSnake(gotLonger bool) {
+	gameBoard := *s.GameBoard
+
 	if !gotLonger {
+		oldTail := s.tail.Value.(mapPoint)
+		gameBoard[oldTail.x][oldTail.y] = 0
+		s.deathBoundaries.Remove(oldTail.x, oldTail.y)
+
 		s.tail = s.tail.Next()
+	} else {
+		// do nothing to the tail, lazy eval
 	}
 
+	oldHead := s.head.Value.(mapPoint)
+
+	var newHead mapPoint
 	switch s.nextTickDirection {
-	case north:
-	case south:
-	case east:
-	case west:
+	case North:
+		newHead = mapPoint{oldHead.x, oldHead.y - 1}
+	case South:
+		newHead = mapPoint{oldHead.x, oldHead.y + 1}
+	case East:
+		newHead = mapPoint{oldHead.x + 1, oldHead.y}
+	case West:
+		newHead = mapPoint{oldHead.x - 1, oldHead.y}
 	}
+
+	s.head = s.head.Next()
+	s.head.Value = newHead
+	s.deathBoundaries.Add(newHead.x, newHead.y)
+	gameBoard[newHead.x][newHead.y] = 1
 }
 
-func (s *Snake) checkBoundaries() (isGameOver, gameWin bool) {
+func (s *Snake) checkGameStatus() (isGameOver, gameWin bool) {
+	_, dead := s.deathBoundaries[xPos(s.head.Value.(mapPoint).x)][yPos(s.head.Value.(mapPoint).y)]
+	if dead {
+		return true, false
+	}
+
+	if s.snakeLength == s.boardWidth*s.boardWidth {
+		return true, true
+	}
+
 	return false, false
 }
 
 func (s *Snake) willGetEgg() bool {
+	if s.head.Value.(mapPoint).x == s.eggLoc.x && s.head.Value.(mapPoint).y == s.eggLoc.y {
+		return true
+	}
 	return false
 }
 
