@@ -917,3 +917,51 @@ func TestSnake_Tick(t *testing.T) {
 		})
 	}
 }
+
+func Test_deathBoundary_IsBoundary(t *testing.T) {
+	type args struct {
+		x int
+		y int
+	}
+	tests := []struct {
+		name string
+		b    deathBoundary
+		args args
+		want bool
+	}{
+		{
+			name: "can find a boundary easily",
+			b: deathBoundary{
+				1: {1: wallExists{}},
+				2: {2: wallExists{}},
+			},
+			args: args{1, 1},
+			want: true,
+		},
+		{
+			name: "if it x doesn't exist, it's not a boundary",
+			b: deathBoundary{
+				1: {1: wallExists{}},
+				2: {2: wallExists{}},
+			},
+			args: args{99, 99},
+			want: false,
+		},
+		{
+			name: "if it y doesn't exist, it's not a boundary",
+			b: deathBoundary{
+				1: {1: wallExists{}},
+				2: {2: wallExists{}},
+			},
+			args: args{1, 99},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.b.IsBoundary(tt.args.x, tt.args.y); got != tt.want {
+				t.Errorf("IsBoundary() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
