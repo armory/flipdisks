@@ -9,10 +9,9 @@ import (
 )
 
 func renderTextToVirtualBoard(msg *options.FlipboardMessageOptions, board *Flipboard) *virtualboard.VirtualBoard {
-	var virtualBoard virtualboard.VirtualBoard
-
 	msgCharsAsDots := fontmap.Render(msg.Message)
-	virtualBoard = CreateVirtualBoard(board.PanelInfo.PhysicallyDisplayedWidth, len(board.PanelAddressesLayout[0]), msgCharsAsDots, msg.Message)
+	virtualBoardPointer := CreateVirtualBoard(board.PanelInfo.PhysicallyDisplayedWidth, len(board.PanelAddressesLayout[0]), msgCharsAsDots, msg.Message)
+	virtualBoard := *virtualBoardPointer
 
 	// todo, it would be nice to just invert it without through the whole board again
 	// handle inverting for words
@@ -28,16 +27,16 @@ func renderTextToVirtualBoard(msg *options.FlipboardMessageOptions, board *Flipb
 		}
 	}
 
-	return &virtualBoard
+	return virtualBoardPointer
 }
 
-func CreateVirtualBoard(panelWidth int, numberOfPanelsWide int, msgCharsAsDots []fontmap.Letter, msg string) virtualboard.VirtualBoard {
+func CreateVirtualBoard(panelWidth int, numberOfPanelsWide int, msgCharsAsDots []fontmap.Letter, msg string) *virtualboard.VirtualBoard {
 	// we have to convert our long array of dotCharacters to a virtual board
 	var longestLine, lineNumber int
 	longestLine = 0
 	lineNumber = 0
 	lineMaxWidth := panelWidth * numberOfPanelsWide
-	var virtualBoard virtualboard.VirtualBoard
+	virtualBoard := virtualboard.VirtualBoard{}
 
 	// join the letters together to form one long string
 	for charIndexInMessage := 0; charIndexInMessage < len(msgCharsAsDots); charIndexInMessage++ {
@@ -99,5 +98,5 @@ func CreateVirtualBoard(panelWidth int, numberOfPanelsWide int, msgCharsAsDots [
 
 		}
 	}
-	return virtualBoard
+	return &virtualBoard
 }

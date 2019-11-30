@@ -32,7 +32,7 @@ func TestConvert(t *testing.T) {
 	if (*v).String() != string(expected) {
 		t.Error("images are not equal")
 		t.Errorf("Expected\n%s", expected)
-		t.Errorf("Got\n%s", *v)
+		t.Errorf("Got\n%s", v)
 	}
 }
 

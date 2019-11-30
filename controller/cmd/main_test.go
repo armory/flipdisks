@@ -1,7 +1,7 @@
 package main
 
 import (
-	"reflect"
+	"fmt"
 	"testing"
 
 	"flipdisks/pkg/flipboard"
@@ -9,6 +9,7 @@ import (
 	"flipdisks/pkg/options"
 	"flipdisks/pkg/virtualboard"
 	"github.com/kr/pty"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateVirtualBoard(t *testing.T) {
@@ -17,7 +18,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 		panelWidth, numberOfPanelsWide int
 		message                        string
 
-		expect virtualboard.VirtualBoard
+		expect *virtualboard.VirtualBoard
 	}{
 		{
 			testDescription:    "It should print out a simple Message",
@@ -25,7 +26,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 			numberOfPanelsWide: 2,
 			message:            "ab",
 
-			expect: []fontmap.Row{
+			expect: &virtualboard.VirtualBoard{
 				{0, 0, 0, 0, 1, 0, 0, 0},
 				{0, 1, 1, 0, 1, 1, 0, 0},
 				{1, 0, 1, 0, 1, 0, 1, 0},
@@ -42,7 +43,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 			numberOfPanelsWide: 2,
 			message:            "a\nb",
 
-			expect: []fontmap.Row{
+			expect: &virtualboard.VirtualBoard{
 				{0, 0, 0, 0},
 				{0, 1, 1, 0},
 				{1, 0, 1, 0},
@@ -66,7 +67,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 			numberOfPanelsWide: 4,
 			message:            "aa bbb ccc",
 
-			expect: []fontmap.Row{
+			expect: &virtualboard.VirtualBoard{
 				// aa
 				{0, 0, 0, 0, 0, 0, 0, 0},
 				{0, 1, 1, 0, 0, 1, 1, 0},
@@ -100,7 +101,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 			numberOfPanelsWide: 4, // number of characters that can fit on a line
 			message:            "aaaaaa",
 
-			expect: []fontmap.Row{
+			expect: &virtualboard.VirtualBoard{
 				// aaa
 				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 				{0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0},
@@ -126,7 +127,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 			numberOfPanelsWide: 2,
 			message:            "$",
 
-			expect: []fontmap.Row{
+			expect: &virtualboard.VirtualBoard{
 				{0, 1, 1, 1, 0, 0},
 				{1, 0, 1, 0, 0, 0},
 				{0, 1, 1, 1, 0, 0},
@@ -142,7 +143,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 			numberOfPanelsWide: 4, // number of characters that can fit on a line
 			message:            "? ?",
 
-			expect: []fontmap.Row{
+			expect: &virtualboard.VirtualBoard{
 				//? ?
 				{1, 1, 0, 0, 0, 0, 1, 1, 0, 0},
 				{0, 0, 1, 0, 0, 0, 0, 0, 1, 0},
@@ -159,7 +160,7 @@ func TestCreateVirtualBoard(t *testing.T) {
 			numberOfPanelsWide: 4, // number of characters that can fit on a line
 			message:            "ū u",
 
-			expect: []fontmap.Row{
+			expect: &virtualboard.VirtualBoard{
 				//█ u
 				{1, 1, 1, 0, 0, 0, 0, 0, 0},
 				{1, 1, 1, 0, 0, 1, 0, 1, 0},
@@ -175,11 +176,14 @@ func TestCreateVirtualBoard(t *testing.T) {
 	for index, testCase := range tests {
 		msgAsDots := fontmap.Render(testCase.message)
 		got := flipboard.CreateVirtualBoard(testCase.panelWidth, testCase.numberOfPanelsWide, msgAsDots, testCase.message)
-		if !reflect.DeepEqual(testCase.expect, got) {
-			t.Errorf("Test %d", index)
-			t.Errorf("Expected\n%#v:\n%s", testCase.expect, testCase.expect)
-			t.Errorf("Got\n%#v:\n%s", got, got)
+		if !assert.Equal(t, testCase.expect, got, fmt.Sprintf("expected\n%s\ngot\n%s", testCase.expect, got)) {
+			t.Errorf("Test case: %d", index)
 		}
+
+		//if !reflect.DeepEqual(testCase.expect, got) {
+		//	t.Errorf("Expected\n%#v:\n%s", testCase.expect, testCase.expect)
+		//	t.Errorf("Got\n%#v:\n%s", got, got)
+		//}
 	}
 }
 
