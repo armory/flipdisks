@@ -45,3 +45,23 @@ Get someone to log you in and then you can do:
 ```bash
 curl https://github.com/your_github_username.keys >> ~/.ssh/authorized_keys
 ```
+
+
+# Tests
+## Mocks
+You can generate mocks using this command, we'll later add a script to generate all the mocks in each package.
+```bash
+mockgen -package snake -source pkg/snake/snake.go -destination pkg/snake/snake_mock.go
+```
+
+## Running Tests
+reflex is a program that will watch for file changes and run a command anytime a file changes. 
+```bash
+cd controller/
+reflex -R vendor -s -- go test ./... -failfast
+```
+
+Benchmarks can be ran by doing
+```bash
+go test -v -run=NONE -bench . -benchtime 100x ./...
+```

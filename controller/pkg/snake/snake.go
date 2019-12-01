@@ -23,6 +23,11 @@ const (
 	West
 )
 
+type snaker interface {
+	nextHeadLoc() mapPoint
+	eggNextLoc() (x, y int)
+}
+
 type Snake struct {
 	boardHeight int
 	boardWidth  int
@@ -44,6 +49,9 @@ type Snake struct {
 
 	// exposed for you to view the board anytime
 	GameBoard *virtualboard.VirtualBoard
+
+	// allow our internal functions to be mocked out
+	snaker
 }
 
 type xPos int
@@ -71,6 +79,7 @@ func New() *Snake {
 }
 
 func (s *Snake) setupGame() {
+	s.snaker = s
 	s.GameBoard = virtualboard.New(s.boardWidth, s.boardHeight)
 	snakeBody := ring.New(s.boardWidth * s.boardHeight)
 
@@ -111,24 +120,16 @@ func (s *Snake) addOutsideBoundaries() {
 		s.deathBoundaries = deathBoundary{}
 	}
 
-	// draw top
-	for i := -1; i < s.boardWidth+1; i++ {
-		s.deathBoundaries.Add(-1, i)
+	// draw top/bottom
+	for i := -1; i <= s.boardWidth; i++ {
+		s.deathBoundaries.Add(i, -1)           // top side
+		s.deathBoundaries.Add(i, s.boardWidth) // bottom side
 	}
 
-	// draw bottom
-	for i := -1; i < s.boardWidth+1; i++ {
-		s.deathBoundaries.Add(s.boardHeight, i)
-	}
-
-	// draw left (would start from -1 to height +1, but that's double drawing corners)
-	for i := 0; i < s.boardHeight; i++ {
-		s.deathBoundaries.Add(i, -1)
-	}
-
-	// draw right (would start from -1 to height +1, but that's double drawing corners)
-	for i := 0; i < s.boardHeight; i++ {
-		s.deathBoundaries.Add(i, s.boardHeight)
+	// draw sides (would start from -1 to height +1, but that's double drawing corners)
+	for i := 0; i <= s.boardHeight; i++ {
+		s.deathBoundaries.Add(-1, i)           // left side
+		s.deathBoundaries.Add(s.boardWidth, i) // right side
 	}
 }
 
@@ -188,14 +189,14 @@ func (s *Snake) Tick(nextDirection direction) (isGameOver, gameWin bool) {
 func (s *Snake) moveSnake(getLonger bool) {
 	gameBoard := *s.GameBoard
 
-	if !getLonger {
+	if getLonger {
+		s.snakeLength++
+	} else {
 		oldTail := s.tail.Value.(mapPoint)
 		gameBoard[oldTail.x][oldTail.y] = emptySpace
 		s.deathBoundaries.Remove(oldTail.x, oldTail.y)
 
 		s.tail = s.tail.Next()
-	} else {
-		// do nothing to the tail, lazy eval
 	}
 
 	nextHead := s.nextHeadLoc()
@@ -224,13 +225,13 @@ func (s *Snake) nextHeadLoc() mapPoint {
 }
 
 func (s *Snake) checkGameStatus() (isGameOver, gameWin bool) {
-	nextHead := s.nextHeadLoc()
+	nextHead := s.snaker.nextHeadLoc()
 	dead := s.deathBoundaries.IsBoundary(nextHead.x, nextHead.y)
 	if dead {
 		return true, false
 	}
 
-	if s.snakeLength == s.boardWidth*s.boardWidth {
+	if s.snakeLength == s.boardWidth*s.boardHeight {
 		return true, true
 	}
 
@@ -246,9 +247,14 @@ func (s *Snake) willGetEgg() bool {
 	return false
 }
 
+func (s *Snake) eggNextLoc() (x, y int) {
+	x = rand.Intn(s.boardWidth)
+	y = rand.Intn(s.boardHeight)
+	return x, y
+}
+
 func (s *Snake) addEgg() bool {
-	full := make(chan struct{})
-	added := make(chan struct{})
+	itsFull, added := make(chan struct{}), make(chan struct{})
 
 	// let's make sure the board isn't full
 	go func() {
@@ -258,15 +264,21 @@ func (s *Snake) addEgg() bool {
 		}
 
 		// +2 because deathBoundaries are created outside the board (top/bottom left/right)
-		if howFull == (s.boardHeight+2)*(s.boardWidth+2) {
-			full <- struct{}{}
+		if howFull >= (s.boardHeight+2)*(s.boardWidth+2) {
+			itsFull <- struct{}{}
+			return
+		}
+
+		// just for sanity sake, if that condition didn't work, lets try this one
+		if s.snakeLength >= s.boardHeight*s.boardWidth {
+			itsFull <- struct{}{}
+			return
 		}
 	}()
 
 	// try placing an egg randomly, if we can't then lets just start iterating from that location
 	go func() {
-		x := rand.Intn(s.boardWidth)
-		y := rand.Intn(s.boardHeight)
+		x, y := s.snaker.eggNextLoc()
 
 		for xTries := 0; xTries < s.boardWidth; xTries++ {
 			for yTries := 0; yTries < s.boardHeight; yTries++ {
@@ -282,13 +294,15 @@ func (s *Snake) addEgg() bool {
 			}
 			x = (x + 1) % s.boardWidth
 		}
+		// we tried everywhere, it's full... or there's a bug...
+		itsFull <- struct{}{}
 	}()
 
 	// it's a race! which goroutine will finish first?
 	// yeah, goroutines aren't parallel, but for some reason it's faster 🤷
 	// something must not be 100% synchronous, so we're kind of relying on that hack
 	select {
-	case <-full:
+	case <-itsFull:
 		return false
 	case <-added:
 		return true

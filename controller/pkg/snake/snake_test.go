@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"flipdisks/pkg/virtualboard"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -236,22 +236,56 @@ func TestSnake_addOutsideBoundaries(t *testing.T) {
 		{
 			name: "adds a 2x2 grid",
 			fields: fields{
-				boardHeight: 2,
 				boardWidth:  2,
+				boardHeight: 2,
 			},
 			expectations: func(t *testing.T, s *Snake) {
 				assert.Equal(t, deathBoundary{
 					-1: {-1: wallExists{}, 0: wallExists{}, 1: wallExists{}, 2: wallExists{}}, // top
-					0: {
-						-1: wallExists{}, // left
-						2:  wallExists{}, // right
-					},
-					1: {
-						-1: wallExists{}, // left
-						2:  wallExists{}, // right
-					},
-					2: {-1: wallExists{}, 0: wallExists{}, 1: wallExists{}, 2: wallExists{}}, // bottom
+					0:  {-1: wallExists{}, /*       gameBoardInHere       */ 2: wallExists{}},
+					1:  {-1: wallExists{}, /*       gameBoardInHere       */ 2: wallExists{}},
+					2:  {-1: wallExists{}, 0: wallExists{}, 1: wallExists{}, 2: wallExists{}}, // bottom
 				}, s.deathBoundaries)
+			},
+		},
+		{
+			name: "adds a 4x2 grid",
+			fields: fields{
+				boardWidth:  2,
+				boardHeight: 4,
+			},
+			//
+			expectations: func(t *testing.T, s *Snake) {
+				b := deathBoundary{}
+				// left side
+				b.Add(-1, -1)
+				b.Add(-1, 0)
+				b.Add(-1, 1)
+				b.Add(-1, 2)
+				b.Add(-1, 3)
+				b.Add(-1, 4)
+
+				// right side
+				b.Add(2, -1)
+				b.Add(2, 0)
+				b.Add(2, 1)
+				b.Add(2, 2)
+				b.Add(2, 3)
+				b.Add(2, 4)
+
+				// top
+				b.Add(-1, -1)
+				b.Add(0, -1)
+				b.Add(1, -1)
+				b.Add(2, -1)
+
+				// bottom
+				b.Add(-1, 2)
+				b.Add(0, 2)
+				b.Add(1, 2)
+				b.Add(2, 2)
+
+				assert.Equal(t, b, s.deathBoundaries)
 			},
 		},
 	}
@@ -271,10 +305,6 @@ func TestSnake_addOutsideBoundaries(t *testing.T) {
 }
 
 func TestSnake_addEgg(t *testing.T) {
-	// this is a tad bit bigger than 4K which is 3840x2160
-	// that's pretty big...
-	largestSupportedBoardWidthHeight := 3840
-
 	type fields struct {
 		boardHeight     int
 		boardWidth      int
@@ -310,7 +340,7 @@ func TestSnake_addEgg(t *testing.T) {
 					1: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
 					2: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
 					3: {0: wallExists{}, 1: wallExists{}, 2: wallExists{}, 3: wallExists{}, 4: wallExists{}},
-					4: {0: wallExists{}, 1: wallExists{}, 3: wallExists{}, 4: wallExists{}},
+					4: {0: wallExists{}, 1: wallExists{}, /*            */ 3: wallExists{}, 4: wallExists{}},
 				},
 			},
 			want: true,
@@ -334,16 +364,61 @@ func TestSnake_addEgg(t *testing.T) {
 			want:   false,
 			expect: func(t *testing.T, s *Snake) {},
 		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Snake{
+				boardHeight:     tt.fields.boardHeight,
+				boardWidth:      tt.fields.boardWidth,
+				startOffset:     tt.fields.startOffset,
+				snakeLength:     tt.fields.snakeLength,
+				eggLoc:          tt.fields.eggLoc,
+				deathBoundaries: tt.fields.deathBoundaries,
+				GameBoard:       virtualboard.New(tt.fields.boardWidth, tt.fields.boardHeight),
+			}
+			s.snaker = s
+			s.addOutsideBoundaries()
+
+			got := s.addEgg()
+
+			if got != tt.want {
+				t.Errorf("addEgg() = %v, want %v", got, tt.want)
+			}
+			tt.expect(t, s)
+		})
+	}
+}
+
+func BenchmarkSnake_addEgg(b *testing.B) {
+	// this is a tad bit bigger than 4K which is 3840x2160
+	// that's pretty big...
+	width4k := 3840
+	height4k := 2160
+
+	type fields struct {
+		boardHeight     int
+		boardWidth      int
+		startOffset     int
+		snakeLength     int
+		eggLoc          mapPoint
+		deathBoundaries deathBoundary
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+		expect func(t *testing.T, s *Snake)
+	}{
 		{
-			name: "it can find that 1 spot in a very large board (essentially a load test)",
+			name: "find the only empty spot in the board",
 			fields: fields{
-				boardWidth:  largestSupportedBoardWidthHeight,
-				boardHeight: largestSupportedBoardWidthHeight,
+				boardWidth:  width4k,
+				boardHeight: height4k,
 				deathBoundaries: func() deathBoundary {
 					b := deathBoundary{}
-					for x := 0; x < largestSupportedBoardWidthHeight; x++ {
-						for y := 0; y < largestSupportedBoardWidthHeight; y++ {
-							if !(x == 393 && y == 488) {
+					for x := 0; x < width4k; x++ {
+						for y := 0; y < height4k; y++ {
+							if !(x == 100 && y == 200) {
 								b.Add(x, y)
 							}
 						}
@@ -353,18 +428,18 @@ func TestSnake_addEgg(t *testing.T) {
 			},
 			want: true,
 			expect: func(t *testing.T, s *Snake) {
-				assert.Equal(t, mapPoint{393, 488}, s.eggLoc)
+				assert.Equal(t, mapPoint{100, 200}, s.eggLoc)
 			},
 		},
 		{
-			name: "can't place an egg because the board is full in a really large board",
+			name: "board is full, can't place egg",
 			fields: fields{
-				boardWidth:  largestSupportedBoardWidthHeight,
-				boardHeight: largestSupportedBoardWidthHeight,
+				boardWidth:  width4k,
+				boardHeight: height4k,
 				deathBoundaries: func() deathBoundary {
 					b := deathBoundary{}
-					for x := 0; x < largestSupportedBoardWidthHeight; x++ {
-						for y := 0; y < largestSupportedBoardWidthHeight; y++ {
+					for x := 0; x < width4k; x++ {
+						for y := 0; y < height4k; y++ {
 							b.Add(x, y)
 						}
 					}
@@ -375,36 +450,21 @@ func TestSnake_addEgg(t *testing.T) {
 			expect: func(t *testing.T, s *Snake) {},
 		},
 	}
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			done := make(chan struct{})
+		s := &Snake{
+			boardWidth:      tt.fields.boardWidth,
+			boardHeight:     tt.fields.boardHeight,
+			deathBoundaries: tt.fields.deathBoundaries,
+			GameBoard:       virtualboard.New(tt.fields.boardWidth, tt.fields.boardHeight),
+		}
+		s.snaker = s
+		s.addOutsideBoundaries()
 
-			go func() {
-				s := &Snake{
-					boardHeight:     tt.fields.boardHeight,
-					boardWidth:      tt.fields.boardWidth,
-					startOffset:     tt.fields.startOffset,
-					snakeLength:     tt.fields.snakeLength,
-					eggLoc:          tt.fields.eggLoc,
-					deathBoundaries: tt.fields.deathBoundaries,
-				}
-				s.GameBoard=virtualboard.New(s.boardWidth, s.boardHeight)
-				s.addOutsideBoundaries()
-
-				got := s.addEgg()
-				if got != tt.want {
-					t.Errorf("addEgg() = %v, want %v", got, tt.want)
-				}
-
-				tt.expect(t, s)
-
-				done <- struct{}{}
-			}()
-
-			select {
-			case <-time.After(500 * time.Millisecond):
-				t.Fatal("timed out trying to add an egg! fix it!")
-			case <-done:
+		b.Run(tt.name, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				b.ResetTimer()
+				s.addEgg()
 			}
 		})
 	}
@@ -672,6 +732,7 @@ func TestSnake_Tick(t *testing.T) {
 	}
 	type ticks struct {
 		nextDirection direction
+		mockSnaker    func(s *Snake, ctrl *gomock.Controller) snaker
 		assert        func(t *testing.T, s *Snake) bool
 		expectedBoard *virtualboard.VirtualBoard
 	}
@@ -825,11 +886,17 @@ func TestSnake_Tick(t *testing.T) {
 				},
 				{
 					nextDirection: South,
+					mockSnaker: func(s *Snake, ctrl *gomock.Controller) snaker {
+						sMock := NewMocksnaker(ctrl)
+						sMock.EXPECT().eggNextLoc().Return(9, 3)
+						sMock.EXPECT().nextHeadLoc().Return(s.nextHeadLoc())
+						return sMock
+					},
 					expectedBoard: (virtualboard.VirtualBoard{
-						{0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-						{0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 1, 1, 3, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -842,10 +909,10 @@ func TestSnake_Tick(t *testing.T) {
 				{
 					nextDirection: West,
 					expectedBoard: (virtualboard.VirtualBoard{
-						{0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-						{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -858,10 +925,10 @@ func TestSnake_Tick(t *testing.T) {
 				{
 					nextDirection: West,
 					expectedBoard: (virtualboard.VirtualBoard{
-						{0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
 						{0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -877,11 +944,10 @@ func TestSnake_Tick(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		if tt.name != "simple game - moving around" {
-			t.Log("WARNING!!! WE'RE SKIPPING THIS TEST! This was prob commited by accident", "snake_test.go:909-11/30/19-04:49")
-			continue
-		}
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			s := &Snake{
 				boardHeight:       tt.fields.boardHeight,
 				boardWidth:        tt.fields.boardWidth,
@@ -900,6 +966,10 @@ func TestSnake_Tick(t *testing.T) {
 
 			fmt.Printf("start:\n%s", s.GameBoard)
 			for i, tick := range tt.ticks {
+				s.snaker = s
+				if tick.mockSnaker != nil {
+					s.snaker = tick.mockSnaker(s, ctrl)
+				}
 				gotIsGameOver, gotGameWin = s.Tick(tick.nextDirection)
 				fmt.Printf("tick # %d:\n%s", i, s.GameBoard)
 
@@ -961,6 +1031,94 @@ func Test_deathBoundary_IsBoundary(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.b.IsBoundary(tt.args.x, tt.args.y); got != tt.want {
 				t.Errorf("IsBoundary() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSnake_checkGameStatus(t *testing.T) {
+	type fields struct {
+		boardWidth      int
+		boardHeight     int
+		snakeLength     int
+		deathBoundaries deathBoundary
+	}
+	tests := []struct {
+		name           string
+		fields         fields
+		mockSnaker     func(ctrl *gomock.Controller) snaker
+		wantIsGameOver bool
+		wantGameWin    bool
+	}{
+		{
+			name: "didn't hit a boundary, game continues on",
+			fields: fields{
+				boardHeight:     11,
+				boardWidth:      11,
+				snakeLength:     5,
+				deathBoundaries: deathBoundary{},
+			},
+			mockSnaker: func(ctrl *gomock.Controller) snaker {
+				s := NewMocksnaker(ctrl)
+				s.EXPECT().nextHeadLoc().Return(mapPoint{5, 5})
+				return s
+			},
+			wantIsGameOver: false,
+			wantGameWin:    false,
+		},
+		{
+			name: "hit a boundary, snake is dead",
+			fields: fields{
+				boardHeight: 11,
+				boardWidth:  11,
+				snakeLength: 5,
+				deathBoundaries: deathBoundary{
+					4: {3: wallExists{}},
+				},
+			},
+			mockSnaker: func(ctrl *gomock.Controller) snaker {
+				s := NewMocksnaker(ctrl)
+				s.EXPECT().nextHeadLoc().Return(mapPoint{4, 3})
+				return s
+			},
+			wantIsGameOver: true,
+			wantGameWin:    false,
+		},
+		{
+			name: "we won the game!",
+			fields: fields{
+				boardHeight:     11,
+				boardWidth:      10,
+				snakeLength:     11 * 10,
+				deathBoundaries: deathBoundary{},
+			},
+			mockSnaker: func(ctrl *gomock.Controller) snaker {
+				s := NewMocksnaker(ctrl)
+				s.EXPECT().nextHeadLoc().Return(mapPoint{4, 3})
+				return s
+			},
+			wantIsGameOver: true,
+			wantGameWin:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			s := &Snake{
+				boardWidth:      tt.fields.boardWidth,
+				boardHeight:     tt.fields.boardHeight,
+				snakeLength:     tt.fields.snakeLength,
+				deathBoundaries: tt.fields.deathBoundaries,
+				snaker:          tt.mockSnaker(ctrl),
+			}
+
+			gotIsGameOver, gotGameWin := s.checkGameStatus()
+			if gotIsGameOver != tt.wantIsGameOver {
+				t.Errorf("checkGameStatus() gotIsGameOver = %v, want %v", gotIsGameOver, tt.wantIsGameOver)
+			}
+			if gotGameWin != tt.wantGameWin {
+				t.Errorf("checkGameStatus() gotGameWin = %v, want %v", gotGameWin, tt.wantGameWin)
 			}
 		})
 	}
