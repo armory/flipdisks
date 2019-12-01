@@ -33,17 +33,17 @@ func (m *Mocksnaker) EXPECT() *MocksnakerMockRecorder {
 }
 
 // nextHeadLoc mocks base method
-func (m *Mocksnaker) nextHeadLoc() mapPoint {
+func (m *Mocksnaker) nextHeadLoc(d direction) mapPoint {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "nextHeadLoc")
+	ret := m.ctrl.Call(m, "nextHeadLoc", d)
 	ret0, _ := ret[0].(mapPoint)
 	return ret0
 }
 
 // nextHeadLoc indicates an expected call of nextHeadLoc
-func (mr *MocksnakerMockRecorder) nextHeadLoc() *gomock.Call {
+func (mr *MocksnakerMockRecorder) nextHeadLoc(d interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "nextHeadLoc", reflect.TypeOf((*Mocksnaker)(nil).nextHeadLoc))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "nextHeadLoc", reflect.TypeOf((*Mocksnaker)(nil).nextHeadLoc), d)
 }
 
 // eggNextLoc mocks base method

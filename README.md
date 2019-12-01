@@ -50,6 +50,10 @@ curl https://github.com/your_github_username.keys >> ~/.ssh/authorized_keys
 # Tests
 ## Mocks
 You can generate mocks using this command, we'll later add a script to generate all the mocks in each package.
+1. first write some code using interfaces
+2. you might need to comment out some tests since they won't implement the new interface
+3. run command
+4. uncomment out tests
 ```bash
 mockgen -package snake -source pkg/snake/snake.go -destination pkg/snake/snake_mock.go
 ```

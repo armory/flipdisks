@@ -3,6 +3,7 @@ module flipdisks
 go 1.13
 
 require (
+	github.com/beefsack/go-astar v0.0.0-20171024231011-f324bbb0d6f7
 	github.com/davecgh/go-spew v1.1.0 // indirect
 	github.com/go-test/deep v1.0.1
 	github.com/golang/mock v1.3.1

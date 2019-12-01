@@ -2,9 +2,12 @@ package snake
 
 import (
 	"container/ring"
+	"fmt"
+	"math"
 	"math/rand"
 
 	"flipdisks/pkg/virtualboard"
+	"github.com/beefsack/go-astar"
 )
 
 const (
@@ -23,7 +26,7 @@ const (
 )
 
 type snaker interface {
-	nextHeadLoc() mapPoint
+	nextHeadLoc(d direction) mapPoint
 	eggNextLoc() (x, y int)
 }
 
@@ -47,7 +50,8 @@ type Snake struct {
 	deathBoundaries deathBoundary
 
 	// exposed for you to view the board anytime
-	GameBoard *virtualboard.VirtualBoard
+	disableGameBoard bool
+	GameBoard        *virtualboard.VirtualBoard
 
 	// allow our internal functions to be mocked out
 	snaker
@@ -62,28 +66,43 @@ type mapPoint struct {
 	x, y int
 }
 
-func New(boardHeight, boardWidth, startOffset, snakeLength int) *Snake {
-	snake := &Snake{
+type Option func(s *Snake) error
+
+func New(boardHeight, boardWidth, startOffset, snakeLength int, opts ...Option) (*Snake, error) {
+	s := &Snake{
 		boardHeight: boardHeight,
 		boardWidth:  boardWidth,
 		startOffset: startOffset,
 		snakeLength: snakeLength,
 	}
 
-	snake.setupGame()
+	for _, opt := range opts {
+		if err := opt(s); err != nil {
+			return &Snake{}, err
+		}
+	}
 
-	_, _ = snake.Tick(East)
+	s.setupGame()
 
-	return snake
+	_, _ = s.Tick(East)
+
+	return s, nil
+}
+
+func DisableGameBoard() Option {
+	return func(s *Snake) error {
+		s.disableGameBoard = true
+		return nil
+	}
 }
 
 func (s *Snake) setupGame() {
 	s.snaker = s
-	s.GameBoard = virtualboard.New(s.boardWidth, s.boardHeight)
 	snakeBody := ring.New(s.boardWidth * s.boardHeight)
 
-	gameBoard := *s.GameBoard
-
+	if !s.disableGameBoard {
+		s.GameBoard = virtualboard.New(s.boardWidth, s.boardHeight)
+	}
 	s.deathBoundaries = deathBoundary{}
 	s.addOutsideBoundaries()
 
@@ -97,7 +116,7 @@ func (s *Snake) setupGame() {
 
 		snakeBody.Value = point
 		s.deathBoundaries.Add(bodyX, bodyY)
-		gameBoard[int(point.x)][int(point.y)] = snakeBodySpace
+		(*s.GameBoard)[point.x][point.y] = snakeBodySpace
 
 		s.tail = snakeBody
 
@@ -109,9 +128,28 @@ func (s *Snake) setupGame() {
 	// add an egg in the same place as where the head is, but on the East side
 	// adding 1 because it looks good
 	s.eggLoc = mapPoint{s.boardWidth - s.head.Value.(mapPoint).x + 1, bodyY}
-	gameBoard[int(s.eggLoc.x)][int(s.eggLoc.y)] = eggSpace
+	(*s.GameBoard)[s.eggLoc.x][s.eggLoc.y] = eggSpace
 
 	s.nextTickDirection = East
+}
+
+func (s *Snake) DisableGameBoard() {
+	s.disableGameBoard = true
+	s.GameBoard = nil
+}
+
+func (s *Snake) EnableGameBoard() {
+	s.disableGameBoard = false
+	s.GameBoard = virtualboard.New(s.boardWidth, s.boardHeight)
+
+	(*s.GameBoard)[s.eggLoc.x][s.eggLoc.y] = eggSpace
+
+	snakeWalk := s.head
+	for snakeWalk.Value != s.tail.Value {
+		bodyLoc := snakeWalk.Value.(mapPoint)
+		(*s.GameBoard)[bodyLoc.x][bodyLoc.y] = snakeBodySpace
+		snakeWalk.Prev()
+	}
 }
 
 func (s *Snake) addOutsideBoundaries() {
@@ -186,31 +224,33 @@ func (s *Snake) Tick(nextDirection direction) (isGameOver, gameWin bool) {
 }
 
 func (s *Snake) moveSnake(getLonger bool) {
-	gameBoard := *s.GameBoard
-
 	if getLonger {
 		s.snakeLength++
 	} else {
 		oldTail := s.tail.Value.(mapPoint)
-		gameBoard[oldTail.x][oldTail.y] = emptySpace
 		s.deathBoundaries.Remove(oldTail.x, oldTail.y)
+		if !s.disableGameBoard {
+			(*s.GameBoard)[oldTail.x][oldTail.y] = emptySpace
+		}
 
 		s.tail = s.tail.Next()
 	}
 
-	nextHead := s.nextHeadLoc()
+	nextHead := s.nextHeadLoc(s.nextTickDirection)
 
 	s.head = s.head.Next()
 	s.head.Value = nextHead
 	s.deathBoundaries.Add(nextHead.x, nextHead.y)
-	gameBoard[nextHead.x][nextHead.y] = snakeBodySpace
+	if !s.disableGameBoard {
+		(*s.GameBoard)[nextHead.x][nextHead.y] = snakeBodySpace
+	}
 }
 
-func (s *Snake) nextHeadLoc() mapPoint {
+func (s *Snake) nextHeadLoc(d direction) mapPoint {
 	currentHead := s.head.Value.(mapPoint)
 
 	var nextHead mapPoint
-	switch s.nextTickDirection {
+	switch d {
 	case North:
 		nextHead = mapPoint{currentHead.x, currentHead.y - 1}
 	case South:
@@ -224,7 +264,7 @@ func (s *Snake) nextHeadLoc() mapPoint {
 }
 
 func (s *Snake) checkGameStatus() (isGameOver, gameWin bool) {
-	nextHead := s.snaker.nextHeadLoc()
+	nextHead := s.snaker.nextHeadLoc(s.nextTickDirection)
 	dead := s.deathBoundaries.IsBoundary(nextHead.x, nextHead.y)
 	if dead {
 		return true, false
@@ -238,7 +278,7 @@ func (s *Snake) checkGameStatus() (isGameOver, gameWin bool) {
 }
 
 func (s *Snake) willGetEgg() bool {
-	nextHead := s.nextHeadLoc()
+	nextHead := s.nextHeadLoc(s.nextTickDirection)
 
 	if nextHead.x == s.eggLoc.x && nextHead.y == s.eggLoc.y {
 		return true
@@ -284,7 +324,9 @@ func (s *Snake) addEgg() bool {
 				boundaryExists := s.deathBoundaries.IsBoundary(x, y)
 				if !boundaryExists {
 					s.eggLoc = mapPoint{x: x, y: y}
-					(*s.GameBoard)[x][y] = eggSpace
+					if !s.disableGameBoard {
+						(*s.GameBoard)[x][y] = eggSpace
+					}
 					added <- struct{}{}
 					return // exit early
 				}
