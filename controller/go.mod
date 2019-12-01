@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/davecgh/go-spew v1.1.0 // indirect
 	github.com/go-test/deep v1.0.1
+	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.1.0 // indirect
 	github.com/google/go-github v15.0.0+incompatible
 	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135 // indirect
@@ -19,10 +20,7 @@ require (
 	github.com/sirupsen/logrus v1.0.5
 	github.com/stretchr/testify v1.2.2
 	github.com/tarm/serial v0.0.0-20180114052751-eaafced92e96 // indirect
-	golang.org/x/crypto v0.0.0-20180621125126-a49355c7e3f8 // indirect
-	golang.org/x/net v0.0.0-20180719001425-81d44fd177a9 // indirect
 	golang.org/x/oauth2 v0.0.0-20180620175406-ef147856a6dd
-	golang.org/x/sys v0.0.0-20180622082034-63fc586f45fe // indirect
 	google.golang.org/appengine v1.1.0 // indirect
 	gopkg.in/yaml.v2 v2.2.1
 )
