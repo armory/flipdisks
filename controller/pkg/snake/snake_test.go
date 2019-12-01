@@ -1077,6 +1077,8 @@ func TestNew(t *testing.T) {
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 				}).Transpose()
 				assertGameBoard(t, expectedGameBoard, s.GameBoard)
+
+				assert.Equal(t, East, s.nextTickDirection)
 			},
 		},
 	}
