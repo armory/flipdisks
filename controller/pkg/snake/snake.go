@@ -9,7 +9,6 @@ import (
 
 const (
 	emptySpace     = 0
-	//snakeHeadSpace = 1
 	snakeBodySpace = 1
 	eggSpace       = 3
 )
@@ -63,12 +62,12 @@ type mapPoint struct {
 	x, y int
 }
 
-func New() *Snake {
+func New(boardHeight, boardWidth, startOffset, snakeLength int) *Snake {
 	snake := &Snake{
-		boardHeight: 11,
-		boardWidth:  11,
-		startOffset: 2,
-		snakeLength: 3,
+		boardHeight: boardHeight,
+		boardWidth:  boardWidth,
+		startOffset: startOffset,
+		snakeLength: snakeLength,
 	}
 
 	snake.setupGame()
@@ -89,7 +88,7 @@ func (s *Snake) setupGame() {
 	s.addOutsideBoundaries()
 
 	bodyX := s.snakeLength + s.startOffset - 1 // subtract 1 because arrays start at 0
-	bodyY := s.boardWidth / 2
+	bodyY := s.boardHeight / 2
 
 	s.head = snakeBody
 
