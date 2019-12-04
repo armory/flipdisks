@@ -12,7 +12,6 @@ require (
 	github.com/jcelliott/lumber v0.0.0-20160324203708-dd349441af25 // indirect
 	github.com/kevinawoo/flipdots v0.0.0-20180824072126-7803864800d9
 	github.com/kr/pty v1.1.2
-	github.com/kyokomi/emoji v2.1.0+incompatible
 	github.com/lusis/go-slackbot v0.0.0-20180109053408-401027ccfef5 // indirect
 	github.com/lusis/slack-test v0.0.0-20190426140909-c40012f20018 // indirect
 	github.com/nanobox-io/golang-scribble v0.0.0-20180621225840-336beac0a992
