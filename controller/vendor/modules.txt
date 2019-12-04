@@ -20,6 +20,8 @@ github.com/jcelliott/lumber
 github.com/kevinawoo/flipdots/panel
 # github.com/kr/pty v1.1.2
 github.com/kr/pty
+# github.com/kyokomi/emoji v2.1.0+incompatible
+github.com/kyokomi/emoji
 # github.com/nanobox-io/golang-scribble v0.0.0-20180621225840-336beac0a992
 github.com/nanobox-io/golang-scribble
 # github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646

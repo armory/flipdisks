@@ -22,6 +22,8 @@ github.com/kevinawoo/flipdots v0.0.0-20180824072126-7803864800d9 h1:Z5ONiLEyr9ou
 github.com/kevinawoo/flipdots v0.0.0-20180824072126-7803864800d9/go.mod h1:kopeSgZDd5/r1sNPEXAY5hYWTDjSgUOAPQbgY3gjpwc=
 github.com/kr/pty v1.1.2 h1:Q7kfkJVHag8Gix8Z5+eTo09NFHV8MXL9K66sv9qDaVI=
 github.com/kr/pty v1.1.2/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
+github.com/kyokomi/emoji v2.1.0+incompatible h1:+DYU2RgpI6OHG4oQkM5KlqD3Wd3UPEsX8jamTo1Mp6o=
+github.com/kyokomi/emoji v2.1.0+incompatible/go.mod h1:mZ6aGCD7yk8j6QY6KICwnZ2pxoszVseX1DNoGtU2tBA=
 github.com/nanobox-io/golang-scribble v0.0.0-20180621225840-336beac0a992 h1:zIRkVn8ZX7aGrS297sWNvZsyu99I3anNIHiMVpOuK/g=
 github.com/nanobox-io/golang-scribble v0.0.0-20180621225840-336beac0a992/go.mod h1:4Mct/lWCFf1jzQTTAaWtOI7sXqmG+wBeiBfT4CxoaJk=
 github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 h1:zYyBkD/k9seD2A7fsi6Oo2LfFZAehjjQMERAvZLEDnQ=

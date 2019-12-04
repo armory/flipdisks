@@ -7,6 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func assertGameBoard(t *testing.T, expectedGameBoard, gotGameboard *virtualboard.VirtualBoard, ) bool {
-	return assert.Equalf(t, expectedGameBoard, gotGameboard, "Expected:\n%s\nGot:\n%s", expectedGameBoard, gotGameboard)
+func assertGameBoard(t *testing.T, expectedGameBoard, gotGameBoard *virtualboard.VirtualBoard, ) bool {
+	return assert.Equalf(t, expectedGameBoard, gotGameBoard, "Expected:\n%s\nGot:\n%s", expectedGameBoard, gotGameBoard)
 }

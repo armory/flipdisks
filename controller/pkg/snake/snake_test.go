@@ -2,6 +2,9 @@ package snake
 
 import (
 	"container/ring"
+	"fmt"
+	"github.com/go-test/deep"
+	"strings"
 	"testing"
 
 	"flipdisks/pkg/virtualboard"
@@ -35,10 +38,9 @@ func TestSnake_setupGame(t *testing.T) {
 				snakeLength: 3,
 			},
 			expectations: func(t *testing.T, s *Snake) {
-				// snake heading East
+				// snake is facing East
 				assert.Equal(t, mapPoint{4, 5}, s.head.Value)
 				assert.Equal(t, mapPoint{2, 5}, s.tail.Value)
-				assert.Equal(t, East, s.nextTickDirection)
 
 				// egg in the right spot
 				assert.Equal(t, mapPoint{11, 5}, s.eggLoc)
@@ -82,142 +84,6 @@ func TestSnake_setupGame(t *testing.T) {
 				deathBoundaries:   tt.fields.deathBoundaries,
 			}
 			s.setupGame()
-			tt.expectations(t, s)
-		})
-	}
-}
-
-func TestDeathBoundary_Add(t *testing.T) {
-	type fields struct {
-		deathBoundaries deathBoundary
-	}
-	type args struct {
-		x int
-		y int
-	}
-	tests := []struct {
-		name         string
-		fields       fields
-		args         []args
-		expectations func(t *testing.T, s *Snake)
-	}{
-		{
-			name: "adds a boundary when empty",
-			fields: fields{
-				deathBoundaries: deathBoundary{},
-			},
-			args: []args{{5, 10}},
-			expectations: func(t *testing.T, s *Snake) {
-				assert.Equal(t, deathBoundary{
-					5: {10: wallExists{}},
-				}, s.deathBoundaries)
-			},
-		},
-		{
-			name: "adds multiple",
-			fields: fields{
-				deathBoundaries: deathBoundary{},
-			},
-			args: []args{
-				{5, 10},
-				{4, 10},
-				{3, 10},
-			},
-			expectations: func(t *testing.T, s *Snake) {
-				assert.Equal(t, deathBoundary{
-					5: {10: wallExists{}},
-					4: {10: wallExists{}},
-					3: {10: wallExists{}},
-				}, s.deathBoundaries)
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &Snake{
-				deathBoundaries: tt.fields.deathBoundaries,
-			}
-
-			for _, arg := range tt.args {
-				s.deathBoundaries.Add(arg.x, arg.y)
-			}
-
-			tt.expectations(t, s)
-		})
-	}
-}
-
-func TestDeathBoundary_Remove(t *testing.T) {
-	type fields struct {
-		deathBoundaries deathBoundary
-	}
-	type args struct {
-		x int
-		y int
-	}
-	tests := []struct {
-		name         string
-		fields       fields
-		args         []args
-		expectations func(t *testing.T, s *Snake)
-	}{
-		{
-			name: "removes a boundary point, but there's still y left",
-			fields: fields{
-				deathBoundaries: deathBoundary{
-					5: {10: wallExists{}, 11: wallExists{}},
-				},
-			},
-			args: []args{{5, 10}},
-			expectations: func(t *testing.T, s *Snake) {
-				assert.Equal(t, deathBoundary{
-					5: {11: wallExists{}},
-				}, s.deathBoundaries)
-			},
-		},
-		{
-			name: "removes a boundary x point, but no more x left",
-			fields: fields{
-				deathBoundaries: deathBoundary{
-					5:  {10: wallExists{}},
-					99: {1: wallExists{}},
-				},
-			},
-			args: []args{{5, 10}},
-			expectations: func(t *testing.T, s *Snake) {
-				assert.Equal(t, deathBoundary{
-					5:  {},
-					99: {1: wallExists{}},
-				}, s.deathBoundaries)
-			},
-		},
-		{
-			name: "tries to remove something that isn't found",
-			fields: fields{
-				deathBoundaries: deathBoundary{
-					5:  {},
-					99: {1: wallExists{}},
-				},
-			},
-			args: []args{{100, 100}},
-			expectations: func(t *testing.T, s *Snake) {
-				assert.Equal(t, deathBoundary{
-					5:  {},
-					99: {1: wallExists{}},
-				}, s.deathBoundaries)
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &Snake{
-				deathBoundaries: tt.fields.deathBoundaries,
-			}
-
-			for _, arg := range tt.args {
-				s.deathBoundaries.Remove(arg.x, arg.y)
-			}
-
 			tt.expectations(t, s)
 		})
 	}
@@ -907,54 +773,6 @@ func TestSnake_Tick(t *testing.T) {
 	}
 }
 
-func Test_deathBoundary_IsBoundary(t *testing.T) {
-	type args struct {
-		x int
-		y int
-	}
-	tests := []struct {
-		name string
-		b    deathBoundary
-		args args
-		want bool
-	}{
-		{
-			name: "can find a boundary easily",
-			b: deathBoundary{
-				1: {1: wallExists{}},
-				2: {2: wallExists{}},
-			},
-			args: args{1, 1},
-			want: true,
-		},
-		{
-			name: "if it x doesn't exist, it's not a boundary",
-			b: deathBoundary{
-				1: {1: wallExists{}},
-				2: {2: wallExists{}},
-			},
-			args: args{99, 99},
-			want: false,
-		},
-		{
-			name: "if it y doesn't exist, it's not a boundary",
-			b: deathBoundary{
-				1: {1: wallExists{}},
-				2: {2: wallExists{}},
-			},
-			args: args{1, 99},
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.b.IsBoundary(tt.args.x, tt.args.y); got != tt.want {
-				t.Errorf("IsBoundary() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestSnake_checkGameStatus(t *testing.T) {
 	type fields struct {
 		boardWidth      int
@@ -1095,7 +913,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestSnake_AutoPlay(t *testing.T) {
+func TestSnake_copy(t *testing.T) {
 	type fields struct {
 		boardHeight       int
 		boardWidth        int
@@ -1106,35 +924,198 @@ func TestSnake_AutoPlay(t *testing.T) {
 		nextTickDirection direction
 		eggLoc            mapPoint
 		deathBoundaries   deathBoundary
+		disableGameBoard  bool
+		GameBoard         *virtualboard.VirtualBoard
+		snaker            snaker
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		original func() *Snake
+		want     func(t *testing.T, orig *Snake, copy *Snake)
+	}{
+		{
+			name: "should copy the struct correctly",
+			original: func() *Snake {
+				s, _ := New(10, 20, 2, 5)
+				s.Tick(East)
+				s.Tick(South)
+				s.Tick(South)
+				s.Tick(East)
+				s.DisableGameBoard()
+				return s
+			},
+			want: func(t *testing.T, orig *Snake, copy *Snake) {
+				// debugging
+				// debugging
+				orig.EnableGameBoard()
+				copy.EnableGameBoard()
+				fmt.Println(orig.GameBoard)
+				fmt.Println(copy.GameBoard)
+				orig.DisableGameBoard()
+				copy.DisableGameBoard()
+
+				assert.Equal(t, 10, copy.boardHeight)
+				assert.Equal(t, 20, copy.boardWidth)
+				assert.Equal(t, 5, copy.snakeLength) // hasn't eaten the egg
+
+				// calling DisableGameBoard removes it
+				assert.Equal(t, true, copy.disableGameBoard)
+				assert.Nil(t, copy.GameBoard)
+
+				// do we have the snake at the right points? (from tail to head)
+				snakeSegments := []mapPoint{
+					{7, 5},
+					{8, 5},
+					{8, 6},
+					{8, 7},
+					{9, 7},
+				}
+				walker := copy.tail
+				for i, seg := range snakeSegments {
+					assert.Equal(t, seg, walker.Value.(mapPoint), "segment %d is not correct", i)
+					walker = walker.Next()
+				}
+				assert.Equal(t, walker.Prev().Value, copy.head.Value) // the for loop goes 1 too far
+
+				// make sure they're different rings by adding a random value to the copy and checking their Next()/Prev() respectively
+				copy.head.Next().Value = mapPoint{99, 99}
+				assert.NotEqual(t, copy.head.Next(), orig.head.Next(), "head is pointing to the same ring")
+
+				copy.tail.Prev().Value = mapPoint{99, 99}
+				assert.NotEqual(t, copy.tail.Prev(), orig.tail.Prev(), "tail is pointing to the same ring")
+
+				// egg
+				assert.Equal(t, mapPoint{15, 5}, copy.eggLoc)
+
+				// death boundaries
+				assert.Empty(t, deep.Equal(copy.deathBoundaries, orig.deathBoundaries), "deathBoundaries are not the same")
+				copy.deathBoundaries.Add(1, 1)
+				deathBoundaryErrors := deep.Equal(copy.deathBoundaries, orig.deathBoundaries)
+				assert.NotEmptyf(t, deathBoundaryErrors, "seems like deathBoundaries are the same!\n%s", strings.Join(deathBoundaryErrors, "\n"))
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			orig := tt.original()
+
+			tt.want(t, orig, orig.copy())
+		})
+	}
+}
+
+func TestSnake_DisableGameBoard(t *testing.T) {
+	type fields struct {
+		boardHeight       int
+		boardWidth        int
+		startOffset       int
+		snakeLength       int
+		head              *ring.Ring
+		tail              *ring.Ring
+		eggLoc            mapPoint
+		nextTickDirection direction
+		deathBoundaries   deathBoundary
+		disableGameBoard  bool
 		GameBoard         *virtualboard.VirtualBoard
 		snaker            snaker
 	}
 	tests := []struct {
 		name   string
 		fields fields
+		expect func(t *testing.T, s *Snake)
 	}{
 		{
-			name:   "play",
-			fields: fields{},
+			name: "can disable GameBoard",
+			fields: fields{
+				GameBoard: virtualboard.New(2, 3),
+			},
+			expect: func(t *testing.T, s *Snake) {
+				assert.True(t, s.disableGameBoard)
+				assert.Empty(t, s.GameBoard)
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			//s := &Snake{
-			//	boardHeight:       tt.fields.boardHeight,
-			//	boardWidth:        tt.fields.boardWidth,
-			//	startOffset:       tt.fields.startOffset,
-			//	snakeLength:       tt.fields.snakeLength,
-			//	head:              tt.fields.head,
-			//	tail:              tt.fields.tail,
-			//	nextTickDirection: tt.fields.nextTickDirection,
-			//	eggLoc:            tt.fields.eggLoc,
-			//	deathBoundaries:   tt.fields.deathBoundaries,
-			//	GameBoard:         tt.fields.GameBoard,
-			//	snaker:            tt.fields.snaker,
-			//}
-			s, _ := New(11, 11, 2, 3)
-			s.AutoPlay()
+			s := &Snake{
+				boardHeight:       tt.fields.boardHeight,
+				boardWidth:        tt.fields.boardWidth,
+				startOffset:       tt.fields.startOffset,
+				snakeLength:       tt.fields.snakeLength,
+				head:              tt.fields.head,
+				tail:              tt.fields.tail,
+				eggLoc:            tt.fields.eggLoc,
+				nextTickDirection: tt.fields.nextTickDirection,
+				deathBoundaries:   tt.fields.deathBoundaries,
+				disableGameBoard:  tt.fields.disableGameBoard,
+				GameBoard:         tt.fields.GameBoard,
+				snaker:            tt.fields.snaker,
+			}
+
+			s.DisableGameBoard()
+
+			tt.expect(t, s)
+		})
+	}
+}
+
+func TestSnake_EnableGameBoard(t *testing.T) {
+	type fields struct {
+		boardHeight       int
+		boardWidth        int
+		startOffset       int
+		snakeLength       int
+		head              *ring.Ring
+		tail              *ring.Ring
+		eggLoc            mapPoint
+		nextTickDirection direction
+		deathBoundaries   deathBoundary
+		disableGameBoard  bool
+		GameBoard         *virtualboard.VirtualBoard
+		snaker            snaker
+	}
+	tests := []struct {
+		name   string
+		s      func() *Snake
+		expect func(t *testing.T, s *Snake)
+	}{
+		{
+			name: "can enable a disabled gameboard",
+			s: func() *Snake {
+				s, _ := New(10, 10, 1, 3)
+				return s
+			},
+			expect: func(t *testing.T, s *Snake) {
+				assert.False(t, s.disableGameBoard)
+				assert.NotEmpty(t, s.GameBoard)
+
+				sTemp, _ := New(10, 10, 1, 3)
+				assertGameBoard(t, sTemp.GameBoard, s.GameBoard)
+			},
+		},
+		{
+			name: "can be ran multiple times",
+			s: func() *Snake {
+				s, _ := New(10, 10, 1, 3)
+				return s
+			},
+			expect: func(t *testing.T, s *Snake) {
+				s.EnableGameBoard()
+
+				assert.False(t, s.disableGameBoard)
+				assert.NotEmpty(t, s.GameBoard)
+
+				sTemp, _ := New(10, 10, 1, 3)
+				assertGameBoard(t, sTemp.GameBoard, s.GameBoard)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.s()
+			s.EnableGameBoard()
+			tt.expect(t, s)
 		})
 	}
 }

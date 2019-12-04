@@ -2,12 +2,8 @@ package snake
 
 import (
 	"container/ring"
-	"fmt"
-	"math"
-	"math/rand"
-
 	"flipdisks/pkg/virtualboard"
-	"github.com/beefsack/go-astar"
+	"math/rand"
 )
 
 const (
@@ -28,6 +24,7 @@ const (
 type snaker interface {
 	nextHeadLoc(d direction) mapPoint
 	eggNextLoc() (x, y int)
+	PlayPaths(directions []direction)
 }
 
 type Snake struct {
@@ -42,9 +39,9 @@ type Snake struct {
 	head *ring.Ring
 	tail *ring.Ring
 
-	nextTickDirection direction
-
 	eggLoc mapPoint
+
+	nextTickDirection direction
 
 	// if (x,y) exists, there's a boundary here, (snake or wall)
 	deathBoundaries deathBoundary
@@ -59,7 +56,6 @@ type Snake struct {
 
 type xPos int
 type yPos int
-type deathBoundary map[xPos]map[yPos]wallExists
 type wallExists struct{}
 
 type mapPoint struct {
@@ -83,8 +79,6 @@ func New(boardHeight, boardWidth, startOffset, snakeLength int, opts ...Option) 
 	}
 
 	s.setupGame()
-
-	_, _ = s.Tick(East)
 
 	return s, nil
 }
@@ -145,10 +139,10 @@ func (s *Snake) EnableGameBoard() {
 	(*s.GameBoard)[s.eggLoc.x][s.eggLoc.y] = eggSpace
 
 	snakeWalk := s.head
-	for snakeWalk.Value != s.tail.Value {
+	for snakeWalk.Next().Value != s.tail.Value { // walk back 1 extra to write GameBoard and etc
 		bodyLoc := snakeWalk.Value.(mapPoint)
 		(*s.GameBoard)[bodyLoc.x][bodyLoc.y] = snakeBodySpace
-		snakeWalk.Prev()
+		snakeWalk = snakeWalk.Prev()
 	}
 }
 
@@ -170,36 +164,6 @@ func (s *Snake) addOutsideBoundaries() {
 	}
 }
 
-func (b *deathBoundary) Add(x, y int) {
-	boundary := *b
-	_, ok := boundary[xPos(x)]
-	if !ok {
-		boundary[xPos(x)] = map[yPos]wallExists{}
-	}
-
-	boundary[xPos(x)][yPos(y)] = wallExists{}
-}
-
-func (b *deathBoundary) Remove(x, y int) {
-	boundary := *b
-	_, found := boundary[xPos(x)]
-	if !found {
-		return // easy peasy
-	}
-
-	delete(boundary[xPos(x)], yPos(y))
-}
-
-func (b *deathBoundary) IsBoundary(x, y int) bool {
-	_, exists := (*b)[xPos(x)]
-	if !exists {
-		return false
-	}
-
-	_, dead := (*b)[xPos(x)][yPos(y)]
-	return dead
-}
-
 func (s *Snake) Tick(nextDirection direction) (isGameOver, gameWin bool) {
 	s.nextTickDirection = nextDirection
 
@@ -210,20 +174,25 @@ func (s *Snake) Tick(nextDirection direction) (isGameOver, gameWin bool) {
 
 	canGetEgg := s.willGetEgg()
 
-	if !canGetEgg {
-		s.moveSnake(false)
-	} else {
-		s.moveSnake(true)
+	getLonger := false
+	if canGetEgg {
+		getLonger = true
+
 		ableToAddEgg := s.addEgg()
 		if !ableToAddEgg {
 			return true, true
 		}
 	}
 
+	moved := s.moveSnake(getLonger)
+	if !moved {
+		return true, false
+	}
+
 	return false, false
 }
 
-func (s *Snake) moveSnake(getLonger bool) {
+func (s *Snake) moveSnake(getLonger bool) bool {
 	if getLonger {
 		s.snakeLength++
 	} else {
@@ -237,6 +206,9 @@ func (s *Snake) moveSnake(getLonger bool) {
 	}
 
 	nextHead := s.nextHeadLoc(s.nextTickDirection)
+	if (nextHead.x < 0 || nextHead.x >= s.boardWidth) || (nextHead.y < 0 || nextHead.y >= s.boardHeight) {
+		return false
+	}
 
 	s.head = s.head.Next()
 	s.head.Value = nextHead
@@ -244,6 +216,8 @@ func (s *Snake) moveSnake(getLonger bool) {
 	if !s.disableGameBoard {
 		(*s.GameBoard)[nextHead.x][nextHead.y] = snakeBodySpace
 	}
+
+	return true
 }
 
 func (s *Snake) nextHeadLoc(d direction) mapPoint {
@@ -349,3 +323,60 @@ func (s *Snake) addEgg() bool {
 		return true
 	}
 }
+
+func (s *Snake) copy() *Snake {
+	oldSnake := s
+
+	copy := &Snake{
+		boardHeight:       oldSnake.boardHeight,
+		boardWidth:        oldSnake.boardWidth,
+		startOffset:       oldSnake.startOffset,
+		snakeLength:       oldSnake.snakeLength,
+		nextTickDirection: oldSnake.nextTickDirection,
+		eggLoc:            oldSnake.eggLoc,
+		deathBoundaries:   oldSnake.deathBoundaries.Copy(),
+		disableGameBoard:  oldSnake.disableGameBoard,
+	}
+
+	copy.snaker = copy
+
+	// make a new snake
+	copy.head = ring.New(oldSnake.boardWidth * oldSnake.boardHeight)
+	copy.tail = copy.head
+
+	// copy the snake by using tail walk backwards
+	copy.head.Value = oldSnake.head.Value
+	copy.tail = copy.head
+
+	oldSnakeWalker := oldSnake.head
+	for oldSnakeWalker.Next().Value != oldSnake.tail.Value {
+		copy.tail = copy.tail.Prev()
+
+		oldSnakeWalker = oldSnakeWalker.Prev()
+		copy.tail.Value = oldSnakeWalker.Value
+	}
+	// reset the tail to what it's suppose to be
+	copy.tail = copy.tail.Next()
+
+	if !copy.disableGameBoard {
+		copy.EnableGameBoard()
+	}
+
+	return copy
+}
+
+func (d direction) String() string {
+	switch d {
+	case North:
+		return "North"
+	case South:
+		return "South"
+	case East:
+		return "East "
+	case West:
+		return "West "
+	default:
+		return "?????"
+	}
+}
+

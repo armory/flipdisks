@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"flipdisks/pkg/fontmap"
+	"github.com/kyokomi/emoji"
 )
 
 // use the canvas coord system instead of cartesian, like in math!
@@ -43,8 +44,12 @@ func max(a, b int) int {
 func (b *VirtualBoard) String() string {
 	board := *b
 
-	blackDot := "⚫️"
-	whiteDot := "⚪️"
+	//blackDot := emoji.Sprint(":black_circle:")
+	//whiteDot := emoji.Sprint(":white_circle:")
+	blackDot := " x "
+	whiteDot := "   "
+	//blackDot := emoji.Sprint(":snake:")
+	//whiteDot := emoji.Sprint(":white_large_square:")
 
 	var line strings.Builder
 
@@ -54,17 +59,35 @@ func (b *VirtualBoard) String() string {
 	newLines := yLen + 1                                        // new line at the end
 	line.Grow(xLen*yLen*dotLen + newLines)
 
+	// add coord system
+	//iToEmoji := []string{":zero:", ":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:"}
+	iToEmoji := []string{" 0 ", " 1 ", " 2 ", " 3 ", " 4 ", " 5 ", " 6 ", " 7 ", " 8 ", " 9 "}
+	line.WriteString("   ")
+	for x := 0; x < xLen; x++ {
+		line.WriteString(emoji.Sprint(iToEmoji[x%10]))
+	}
+	line.WriteString("\n")
+
 	for y := 0; y < yLen; y++ { // do y first since we're drawing top down
+		line.WriteString(emoji.Sprint(iToEmoji[y%10]))
 		for x := 0; x < xLen; x++ { // then left right
 			//line.WriteString(strconv.Itoa(board[x][y]))
-			if board[x][y] >= 1 {
+			if board[x][y] == 1 {
 				line.WriteString(blackDot)
+			} else if board[x][y] == 3 {
+				line.WriteString(" o ")
 			} else {
 				line.WriteString(whiteDot)
 			}
 		}
-		line.WriteString("\n")
+		line.WriteString(emoji.Sprint(iToEmoji[y%10])+"\n")
 	}
+
+	line.WriteString("   ")
+	for x := 0; x < xLen; x++ {
+		line.WriteString(emoji.Sprint(iToEmoji[x%10]))
+	}
+	line.WriteString("\n")
 
 	return line.String()
 }
