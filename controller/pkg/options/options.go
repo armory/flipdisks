@@ -70,6 +70,7 @@ func GetAlignOptions(align string) (string, string) {
 
 	return XAlign, YAlign
 }
+
 func SplitMessageAndOptions(rawMsg string) []FlipboardMessageOptions {
 	var messages []FlipboardMessageOptions
 

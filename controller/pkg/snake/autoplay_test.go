@@ -33,12 +33,13 @@ func Test_abs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := abs(tt.args.n); got != tt.want {
-				t.Errorf("abs() = %v, want %v", got, tt.want)
+			if got := intAbs(tt.args.n); got != tt.want {
+				t.Errorf("intAbs() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
+
 
 func TestSnake_AutoPlay(t *testing.T) {
 	tests := []struct {
@@ -144,3 +145,4 @@ func TestSnake_AutoPlayRandomly(t *testing.T) {
 //
 //    // Open set is empty but goal was never reached
 //    return failure
+

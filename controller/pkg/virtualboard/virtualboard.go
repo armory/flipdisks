@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"flipdisks/pkg/fontmap"
-	"github.com/kyokomi/emoji"
 )
 
 // use the canvas coord system instead of cartesian, like in math!
@@ -44,48 +43,49 @@ func max(a, b int) int {
 func (b *VirtualBoard) String() string {
 	board := *b
 
-	//blackDot := emoji.Sprint(":black_circle:")
-	//whiteDot := emoji.Sprint(":white_circle:")
-	blackDot := " x "
-	whiteDot := "   "
-	//blackDot := emoji.Sprint(":snake:")
-	//whiteDot := emoji.Sprint(":white_large_square:")
+	//const onDot = emoji.Sprint(":black_circle:")   // lib can be found: "github.com/kyokomi/emoji"
+	//const offDot = emoji.Sprint(":white_circle:")
+	//const blackDot = "⚫️"
+	//const whiteDot = "⚪️"
+	const onDot = " x "
+	const offDot = "   "
+	const eggSpace = " o " // special value for snake (egg)
 
-	var line strings.Builder
+	var line strings.Builder                                // apparently this is faster than string appending
+	xLen := len(board)                                      // +2 for the header and footer
+	yLen := len(board[0])                                   // +2 for the left and right side
+	dotLen := max(len([]byte(onDot)), len([]byte(offDot)))  // emoji's sometimes can have an extra 3 bytes for "️ Variation Selector-16". See https://emojipedia.org/variation-selector-16/
+	newLineChar := yLen + 1                                 // new line at the end
+	line.Grow((xLen+2)*(yLen+2)*dotLen + (newLineChar + 2)) // +1 line for each top/bottom/left/right headers
 
-	xLen := len(board)
-	yLen := len(board[0])
-	dotLen := max(len([]byte(blackDot)), len([]byte(whiteDot))) // there's an extra 3 bytes for "️ Variation Selector-16" see https://emojipedia.org/variation-selector-16/
-	newLines := yLen + 1                                        // new line at the end
-	line.Grow(xLen*yLen*dotLen + newLines)
-
-	// add coord system
-	//iToEmoji := []string{":zero:", ":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:"}
-	iToEmoji := []string{" 0 ", " 1 ", " 2 ", " 3 ", " 4 ", " 5 ", " 6 ", " 7 ", " 8 ", " 9 "}
+	// add coord system on top
+	intString := []string{" 0 ", " 1 ", " 2 ", " 3 ", " 4 ", " 5 ", " 6 ", " 7 ", " 8 ", " 9 "}
 	line.WriteString("   ")
 	for x := 0; x < xLen; x++ {
-		line.WriteString(emoji.Sprint(iToEmoji[x%10]))
+		line.WriteString(intString[x%10])
 	}
 	line.WriteString("\n")
 
 	for y := 0; y < yLen; y++ { // do y first since we're drawing top down
-		line.WriteString(emoji.Sprint(iToEmoji[y%10]))
-		for x := 0; x < xLen; x++ { // then left right
-			//line.WriteString(strconv.Itoa(board[x][y]))
-			if board[x][y] == 1 {
-				line.WriteString(blackDot)
-			} else if board[x][y] == 3 {
-				line.WriteString(" o ")
-			} else {
-				line.WriteString(whiteDot)
+		rowHeader := intString[y%10]
+		line.WriteString(rowHeader) // left side
+		for x := 0; x < xLen; x++ { // left to right
+			switch board[x][y] {
+			case 1:
+				line.WriteString(onDot)
+			case 3:
+				line.WriteString(eggSpace)
+			default:
+				line.WriteString(offDot)
 			}
 		}
-		line.WriteString(emoji.Sprint(iToEmoji[y%10])+"\n")
+		line.WriteString(rowHeader + "\n") // right side
 	}
 
+	// add coord system on bottom
 	line.WriteString("   ")
 	for x := 0; x < xLen; x++ {
-		line.WriteString(emoji.Sprint(iToEmoji[x%10]))
+		line.WriteString(intString[x%10])
 	}
 	line.WriteString("\n")
 

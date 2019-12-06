@@ -7,65 +7,52 @@ import (
 	"time"
 )
 
-const MaxUint = ^uint(0)
-const MaxInt = int(MaxUint >> 1)
-
-func (s *Snake) AutoPlayRandomly() {
+func (s *Snake) AutoPlayRandomly() (isGameOver bool) {
 	directions := []direction{East, North, South, West}
-	var isGameOver, _ bool
 
-	fmt.Println(s.GameBoard)
-	for {
+	fmt.Println(s.GameBoard) // print starting game
+	for !isGameOver {
 		i := rand.Intn(len(directions)) % len(directions)
-		isGameOver, _ = s.Tick(directions[i])
+		isGameOver, _ := s.Tick(directions[i])
 
 		// go into survival mode
 		if isGameOver {
-			deaths := 0
 			for ohGod := 0; ohGod <= len(directions)-1; ohGod++ {
 				isGameOver, _ = s.Tick(directions[i])
-				if isGameOver {
-					deaths++
-				}
-			}
-
-			// really died
-			if deaths == len(directions) {
-				return
 			}
 		}
 
 		fmt.Println(s.GameBoard)
 		time.Sleep(50 * time.Millisecond)
 	}
-}
 
-func (s *Snake) AutoPlay() (gameOver bool) {
-	for !gameOver {
-		ss := autoPlay{
-			q: priorityQueue{},
-		}
-
-		sCopy := s.copy()
-		directions, found := ss.getPath(sCopy) // the 2nd param is empty because egg is already included everywhere
-
-		fmt.Println(s.GameBoard)
-
-		if found {
-			for _, d := range directions {
-				s.Tick(d)
-				fmt.Println(s.GameBoard)
-				time.Sleep(10 * time.Millisecond)
-			}
-		} else {
-			break
-		}
-	}
 	return true
 }
 
 type autoPlay struct {
 	q priorityQueue
+}
+
+func (s *Snake) AutoPlay() (gameOver bool) {
+	for !gameOver {
+		ap := autoPlay{q: priorityQueue{}}
+
+		sCopy := s.copy()
+		directions, found := ap.getPath(sCopy)
+
+		fmt.Println(s.GameBoard) // print the start of the game
+
+		if found {
+			// start walking
+			for _, d := range directions {
+				gameOver, _ = s.Tick(d)
+				fmt.Println(s.GameBoard)
+				time.Sleep(10 * time.Millisecond)
+			}
+		}
+	}
+
+	return true
 }
 
 func (a autoPlay) getPath(snake *Snake) (directions []direction, found bool) {
@@ -76,15 +63,14 @@ func (a autoPlay) getPath(snake *Snake) (directions []direction, found bool) {
 	heap.Push(&a.q, node)
 
 	for {
-		fmt.Println("queue length: ", a.q.Len())
+		// we couldn't find a path
 		if a.q.Len() == 0 {
 			return nil, false
 		}
 
 		curr := heap.Pop(&a.q).(*autoPlayNode)
-		//fmt.Println("pop", curr.s.nextTickDirection, curr.heuristicDistance, fmt.Sprintf("%p", curr))
 
-		// found the egg, return the directions!
+		// yay! found the egg, return the directions we should follow
 		if curr.gotEgg {
 			for curr.parent != nil {
 				directions = append([]direction{curr.s.nextTickDirection}, directions...)
@@ -93,18 +79,16 @@ func (a autoPlay) getPath(snake *Snake) (directions []direction, found bool) {
 			return directions, true
 		}
 
+		// start exploring our neighbors
 		for _, neighbor := range curr.explore() {
-			//logrus.Infof("%v->%v %s - egg%v", neighbor.s.head.Value.(mapPoint), neighbor.s.head.Value.(mapPoint), neighbor.s.nextTickDirection, neighbor.s.eggLoc)
-
 			neighborHeuristic := neighbor.travelCost() + neighbor.getHeuristicDistance()
 			if neighbor.gotEgg {
-				neighborHeuristic = 0
+				neighborHeuristic = 0 // omg yay!
 			}
 
-			// neighbor is better than our current, we should explore this one
+			// the neighbor is better than our current node, we should really explore this one
 			if neighborHeuristic <= curr.heuristicDistance {
 				neighbor.heuristicDistance = neighborHeuristic
-				//fmt.Println("push", neighbor.s.nextTickDirection, neighbor.heuristicDistance, fmt.Sprintf("%p", neighbor))
 				heap.Push(&a.q, neighbor)
 			}
 		}
@@ -145,6 +129,7 @@ func (a *autoPlayNode) explore() []*autoPlayNode {
 	return snakeFeelers
 }
 
+// sometime in the future, we might want to change
 func (a *autoPlayNode) travelCost() int {
 	return 1
 }
@@ -152,21 +137,17 @@ func (a *autoPlayNode) travelCost() int {
 func (a *autoPlayNode) getHeuristicDistance() int {
 	currentPos := a.s.head.Value.(mapPoint)
 
-	xDist := abs(currentPos.x - a.s.eggLoc.x)
-	yDist := abs(currentPos.y - a.s.eggLoc.y)
+	// use the manhattan distance because it's fast and good enough
+	xDist := intAbs(currentPos.x - a.s.eggLoc.x)
+	yDist := intAbs(currentPos.y - a.s.eggLoc.y)
 
 	return xDist + yDist
 }
 
-func (a *autoPlayNode) copy() *autoPlayNode {
-	newSnakeSight := &autoPlayNode{
-		s: a.s.copy(),
-	}
+const MaxUint = ^uint(0)
+const MaxInt = int(MaxUint >> 1)
 
-	return newSnakeSight
-}
-
-func abs(n int) int {
+func intAbs(n int) int {
 	y := n >> 31
 	return (n ^ y) - y
 }

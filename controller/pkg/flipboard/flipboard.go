@@ -179,7 +179,7 @@ func displayVirtualBoardToPhysicalBoard(msg *options.FlipboardMessageOptions, vB
 	// set alignment options
 	msg.XAlign, msg.YAlign = options.GetAlignOptions(msg.Align)
 
-	fmt.Println(virtualBoard)
+	fmt.Println(virtualBoard.String())
 
 	// the library flipped height and width by accident, we'll work around it
 	panelWidth := board.PanelInfo.PanelHeight
