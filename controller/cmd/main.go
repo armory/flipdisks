@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/armory/flipdisks/controller/pkg/flipboard"
-	"github.com/armory/flipdisks/controller/pkg/github"
-	"github.com/armory/flipdisks/controller/pkg/slackbot"
+	"github.com/armory/flipdisks/pkg/flipboard"
+	"github.com/armory/flipdisks/pkg/github"
+	"github.com/armory/flipdisks/pkg/slackbot"
 	log "github.com/sirupsen/logrus"
 )
 

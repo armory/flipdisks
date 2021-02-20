@@ -3,9 +3,9 @@ package flipboard
 import (
 	"regexp"
 
-	"github.com/armory/flipdisks/controller/pkg/fontmap"
-	"github.com/armory/flipdisks/controller/pkg/options"
-	"github.com/armory/flipdisks/controller/pkg/virtualboard"
+	"github.com/armory/flipdisks/pkg/fontmap"
+	"github.com/armory/flipdisks/pkg/options"
+	"github.com/armory/flipdisks/pkg/virtualboard"
 )
 
 func renderTextToVirtualBoard(msg *options.FlipboardMessageOptions, board *Flipboard) *virtualboard.VirtualBoard {

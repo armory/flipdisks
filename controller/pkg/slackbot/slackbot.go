@@ -2,26 +2,27 @@ package slackbot
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"text/template"
 
-	"github.com/armory/flipdisks/controller/pkg/flipboard"
-	"github.com/armory/flipdisks/controller/pkg/github"
-	"github.com/armory/flipdisks/controller/pkg/options"
 	"github.com/nlopes/slack"
+
+	"github.com/armory/flipdisks/pkg/flipboard"
+	"github.com/armory/flipdisks/pkg/github"
+	"github.com/armory/flipdisks/pkg/options"
+
+	"github.com/armory/flipdisks/pkg/ngrok"
 )
 
 type Slack struct {
 	token             string
 	githubEmojiLookup github.EmojiLookup
 	RTM               *slack.RTM
+	ngrok             *ngrok.Config
 }
 
 func NewSlack(token string, g github.EmojiLookup) *Slack {
@@ -34,6 +35,7 @@ func NewSlack(token string, g github.EmojiLookup) *Slack {
 		token:             token,
 		githubEmojiLookup: g,
 		RTM:               rtm,
+		ngrok:             ngrok.New(),
 	}
 }
 
@@ -67,7 +69,7 @@ func (s *Slack) handleSlackMsg(slackEvent *slack.MessageEvent, board *flipboard.
 
 	if strings.HasPrefix(rawMsg, s.getMyUserIdFormatted()) {
 		msg := strings.TrimSpace(strings.TrimPrefix(rawMsg, s.getMyUserIdFormatted()))
-		
+
 		if strings.ToLower(msg) == "help" {
 			s.respondWithHelpMsg(slackEvent.Msg.Channel)
 			return
@@ -234,13 +236,18 @@ inverted:     # (true/false) invert the text or image
 bwThreshold:  # (0-256) set the threshold value for either "on" or "off"
 fill:         # ("", true/false) leave blank for autofill, or select your own fill
 `
-
 	// we would like to add support for this in the future
 	//kerning: 0	         // spacing between letters
 	//font-size: 1           // ??
 
 	msg += "```\n\n"
-	s.RTM.SendMessage(s.RTM.NewOutgoingMessage(msg, channelId))
+
+	msg += "To display the help message for the settings, type in:   `@{{.Username}} settings help`"
+
+	t, _ := template.New("").Parse(msg)
+	var b bytes.Buffer
+	_ = t.Execute(&b, struct{ Username string }{Username: s.RTM.GetInfo().User.Name})
+	s.RTM.SendMessage(s.RTM.NewOutgoingMessage(b.String(), channelId))
 }
 
 func (s *Slack) respondWithSettingsHelpMessage(channelId string) {
@@ -256,11 +263,7 @@ countdown YYYY-MM-DD   # set a new countdown date and enable it
 ` + "```")
 
 	var buff bytes.Buffer
-	_ = t.Execute(&buff, struct {
-		Username string
-	}{
-		Username: s.RTM.GetInfo().User.Name,
-	})
+	_ = t.Execute(&buff, struct{ Username string }{Username: s.RTM.GetInfo().User.Name})
 
 	s.RTM.SendMessage(s.RTM.NewOutgoingMessage(buff.String(), channelId))
 }
@@ -268,46 +271,30 @@ countdown YYYY-MM-DD   # set a new countdown date and enable it
 func (s *Slack) respondWithSSHConnectionString(channelId string) {
 	slackMessage := ""
 
-	ngrokResp, err := http.Get("http://localhost:4040/api/tunnels")
-	if err != nil || ngrokResp == nil {
-		slackMessage = "error: `local ngrok could not be reached`"
-		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
-		return
-	}
-
-	defer ngrokResp.Body.Close()
-
-	ngrokBody, err := ioutil.ReadAll(ngrokResp.Body)
-	if err != nil {
-		slackMessage = "error: `could not read ngrok response`"
-		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
-		return
-	}
-
-	ngrok := struct {
-		Tunnels []struct {
-			Name      string
-			PublicUrl string `json:"public_url"`
-		}
-	}{}
-
-	err = json.Unmarshal(ngrokBody, &ngrok)
-	if err != nil {
-		slackMessage = "error: `could not parse ngrok response`"
+	if !s.ngrok.IsDaemonActive() {
+		slackMessage = "error: `local ngrok daemon could not be reached`"
 		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
 		return
 	}
 
 	// yay! we can actually send the ssh connection string
-	ngrokUrl, _ := url.Parse(ngrok.Tunnels[0].PublicUrl)
+	p, err := s.ngrok.StartTunnel("ssh", ngrok.ProtocolTCP, 22)
+	if err != nil {
+		slackMessage = "error: `could not start an ngrok port: `" + err.Error()
+		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
+		return
+	}
+
+	ngrokUrl, err := url.Parse(p.PublicURL)
 	if err != nil {
 		slackMessage = "error: `could not parse ngrok url`"
 		s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
 		return
 	}
 
-	slackMessage = fmt.Sprintf("`ssh -p %s pi@%s`\n", ngrokUrl.Port(), ngrokUrl.Hostname())
-	slackMessage += fmt.Sprintf("`host: %s:%s`\n", ngrokUrl.Hostname(), ngrokUrl.Port())
-	slackMessage += fmt.Sprintf("`./bin/build-controller.sh && HOST=%s PORT=%s ./bin/deploy-controller.sh`\n", ngrokUrl.Hostname(), ngrokUrl.Port())
+	slackMessage = fmt.Sprintf("You can now connect to the flipdisk. The connection will automatically time out after *%s*.\n", s.ngrok.GetTimeout().String())
+	slackMessage += fmt.Sprintf("The host is `%s:%s`\n", ngrokUrl.Hostname(), ngrokUrl.Port())
+	slackMessage += fmt.Sprintf("Hint for ssh access: `ssh -p %s pi@%s`\n", ngrokUrl.Port(), ngrokUrl.Hostname())
+	slackMessage += fmt.Sprintf("Hint to deploy: `./bin/build-controller.sh && HOST=%s PORT=%s ./bin/deploy-controller.sh`\n", ngrokUrl.Hostname(), ngrokUrl.Port())
 	s.RTM.SendMessage(s.RTM.NewOutgoingMessage(slackMessage, channelId))
 }

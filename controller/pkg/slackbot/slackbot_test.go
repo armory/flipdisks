@@ -3,7 +3,7 @@ package slackbot
 import (
 	"testing"
 
-	"github.com/armory/flipdisks/controller/pkg/options"
+	"github.com/armory/flipdisks/pkg/options"
 	"github.com/go-test/deep"
 	"github.com/stretchr/testify/assert"
 )

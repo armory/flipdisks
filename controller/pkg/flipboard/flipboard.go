@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armory/flipdisks/controller/db"
-	"github.com/armory/flipdisks/controller/pkg/image"
-	"github.com/armory/flipdisks/controller/pkg/options"
-	"github.com/armory/flipdisks/controller/pkg/virtualboard"
+	"github.com/armory/flipdisks/db"
+	"github.com/armory/flipdisks/pkg/image"
+	"github.com/armory/flipdisks/pkg/options"
+	"github.com/armory/flipdisks/pkg/virtualboard"
 	"github.com/kevinawoo/flipdots/panel"
 	log "github.com/sirupsen/logrus"
 )

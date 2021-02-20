@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/armory/flipdisks/controller/pkg/image"
+	"github.com/armory/flipdisks/pkg/image"
 )
 
 func main() {
